@@ -1,0 +1,66 @@
+import { ROLES } from '../../types/roles.js'
+
+/**
+ * Shape products data based on user role - DATA SECURITY LAYER
+ * Filters product fields to protect sensitive financial information
+ * @param {array} rawProducts - Raw product data from API
+ * @param {string} userRole - User role (owner/manager/staff)
+ * @returns {array} - Role-filtered product data
+ */
+export const shapeProductsByRole = (rawProducts, userRole) => {
+  if (!Array.isArray(rawProducts) || !userRole) {
+    return []
+  }
+
+  return rawProducts.map(product => {
+    // Base fields available to everyone
+    const shapedProduct = {
+      id: product.id,
+      name: product.name,
+      sku: product.sku,
+      category: product.category,
+      image: product.image,
+      stockLevel: product.stockLevel,
+      minStockLevel: product.minStockLevel,
+      unit: product.unit,
+      status: product.status, // active, discontinued
+      location: product.location,
+      lastUpdated: product.lastUpdated
+    }
+
+    // Role-specific fields
+    if (userRole === ROLES.OWNER) {
+      // Owner sees everything including costs and margins
+      return {
+        ...shapedProduct,
+        price: product.price,
+        cost: product.cost,
+        margin: product.margin,
+        supplier: product.supplier,
+        totalValue: product.price * product.stockLevel,
+        totalCost: product.cost * product.stockLevel
+      }
+    }
+
+    if (userRole === ROLES.MANAGER) {
+      // Manager sees price but NOT cost/margin
+      return {
+        ...shapedProduct,
+        price: product.price,
+        supplier: product.supplier,
+        totalValue: product.price * product.stockLevel
+        // REMOVED: cost, margin, totalCost
+      }
+    }
+
+    if (userRole === ROLES.STAFF) {
+      // Staff sees only operational data (no prices/costs)
+      return {
+        ...shapedProduct
+        // REMOVED: price, cost, margin, supplier, totalValue, totalCost
+      }
+    }
+
+    return shapedProduct
+  })
+}

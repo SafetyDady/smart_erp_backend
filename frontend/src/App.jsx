@@ -2,6 +2,7 @@ import React from 'react'
 import { RoleProvider, useRole } from './components/guards/RoleContext'
 import AppLayout from './components/layout/AppLayout'
 import DashboardPage from './pages/DashboardPage'
+import ProductsPage from './pages/ProductsPage'
 
 /**
  * App - Root application component
@@ -20,22 +21,38 @@ function App() {
  */
 function AppContent() {
   const { userRole } = useRole()
-  const [currentPage] = React.useState('dashboard')
+  const [currentPage, setCurrentPage] = React.useState('dashboard')
   const [userName] = React.useState('John Doe')
   const [notifications] = React.useState([
     { id: 1, message: 'New order received' },
     { id: 2, message: 'Weekly report ready' }
   ])
 
-  // In a real app, this would come from route params or navigation state
-  const handleNavigate = (pageId, href) => {
-    console.log(`Navigate to: ${pageId} (${href})`)
-    // TODO: Implement routing
+  // Simple state-based routing
+  const handleNavigate = (pageId) => {
+    console.log(`Navigate to: ${pageId}`)
+    setCurrentPage(pageId)
   }
 
   const handleRoleChange = (newRole) => {
     console.log(`App: Role changed to ${newRole}`)
     // Additional role change handling if needed
+  }
+
+  // Render current page content
+  const renderContent = () => {
+    switch (currentPage) {
+      case 'dashboard':
+        return <DashboardPage />
+      case 'products':
+        return <ProductsPage />
+      case 'orders':
+        return <div className="p-8 text-center text-slate-500">Orders Module (Coming Soon)</div>
+      case 'customers':
+        return <div className="p-8 text-center text-slate-500">Customers Module (Coming Soon)</div>
+      default:
+        return <DashboardPage />
+    }
   }
 
   return (
@@ -47,7 +64,7 @@ function AppContent() {
       onNavigate={handleNavigate}
       onRoleChange={handleRoleChange}
     >
-      <DashboardPage />
+      {renderContent()}
     </AppLayout>
   )
 }
