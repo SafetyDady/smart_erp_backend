@@ -1,0 +1,13 @@
+# LOCAL DEVELOPMENT ONLY - DO NOT USE FOR PRODUCTION
+# Railway uses Dockerfile directly, not this compose file
+services:
+  backend:
+    build: ./backend
+    container_name: smart_erp_backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    # DEV MODE: includes --reload for hot reloading
+    command: >
+      sh -c "uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
