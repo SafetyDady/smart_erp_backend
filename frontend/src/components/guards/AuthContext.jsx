@@ -31,7 +31,7 @@ export const AuthProvider = ({ children }) => {
 
   const fetchUserInfo = async (authToken) => {
     try {
-      const response = await fetch('/api/auth/me', {
+      const response = await fetch('http://localhost:8001/api/auth/me', {
         headers: {
           'Authorization': `Bearer ${authToken}`
         }

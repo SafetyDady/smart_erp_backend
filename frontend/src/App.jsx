@@ -42,10 +42,8 @@ function AppContent() {
   // Show login page if not authenticated
   if (!isAuthenticated) {
     return <LoginPage onLoginSuccess={() => {
-      // Update role from user data if available
-      if (user?.role) {
-        setUserRole(user.role)
-      }
+      // Force refresh authentication state
+      window.location.reload()
     }} />
   }
 

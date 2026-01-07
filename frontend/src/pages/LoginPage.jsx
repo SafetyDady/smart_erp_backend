@@ -19,36 +19,55 @@ export default function LoginPage({ onLoginSuccess }) {
 
     try {
       // Call backend login API
-      const response = await fetch('/api/auth/login', {
+      const response = await fetch('http://localhost:8001/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          username,
+          email: username,
           password
         })
       })
 
       if (!response.ok) {
+        const errorText = await response.text()
+        console.error('Login failed:', response.status, errorText)
         throw new Error('Invalid credentials')
       }
 
       const data = await response.json()
+      console.log('Login successful, token received:', !!data.access_token)
       
       // Store token
       localStorage.setItem('token', data.access_token)
       
       // Fetch user info and set role
-      const userResponse = await fetch('/api/auth/me', {
+      const userResponse = await fetch('http://localhost:8001/api/auth/me', {
         headers: {
           'Authorization': `Bearer ${data.access_token}`
         }
       })
 
+      console.log('User info request status:', userResponse.status)
+
       if (userResponse.ok) {
-        const userData = await userResponse.json()
-        setUserRole(userData.role || 'staff')
+        const contentType = userResponse.headers.get('content-type')
+        console.log('Response content-type:', contentType)
+        
+        if (contentType && contentType.includes('application/json')) {
+          const userData = await userResponse.json()
+          console.log('User data received:', userData)
+          setUserRole(userData.role || 'staff')
+        } else {
+          console.error('Expected JSON response but got:', contentType)
+          const textResponse = await userResponse.text()
+          console.error('Response body:', textResponse)
+          setUserRole('staff') // Default role
+        }
+      } else {
+        console.error('Failed to fetch user info:', userResponse.status)
+        setUserRole('staff') // Default role
       }
 
       // Call success callback
@@ -56,6 +75,7 @@ export default function LoginPage({ onLoginSuccess }) {
         onLoginSuccess()
       }
     } catch (err) {
+      console.error('Login error:', err)
       setError(err.message || 'Login failed. Please try again.')
     } finally {
       setLoading(false)
@@ -135,8 +155,8 @@ export default function LoginPage({ onLoginSuccess }) {
           {/* Demo Credentials */}
           <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-blue-900 text-sm font-medium mb-2">Demo Credentials:</p>
-            <p className="text-blue-800 text-xs">Email: admin@company.com</p>
-            <p className="text-blue-800 text-xs">Password: admin123</p>
+            <p className="text-blue-800 text-xs">Email: demo@example.com</p>
+            <p className="text-blue-800 text-xs">Password: demo123</p>
           </div>
         </div>
       </div>
