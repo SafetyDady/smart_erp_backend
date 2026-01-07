@@ -66,6 +66,13 @@ const Sidebar = ({
       roles: ['owner', 'manager']
     },
     {
+      id: 'hr',
+      name: 'HR',
+      icon: Users,
+      href: '/hr',
+      roles: ['owner', 'manager']
+    },
+    {
       id: 'settings',
       name: 'Settings',
       icon: Settings,
