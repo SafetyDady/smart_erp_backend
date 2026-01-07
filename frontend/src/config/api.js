@@ -9,6 +9,9 @@ export const apiConfig = {
   endpoints: {
     health: '/health',
     root: '/',
+    // Auth endpoints
+    login: '/api/auth/login',
+    me: '/api/auth/me',
     // Dashboard endpoints
     dashboard: '/api/dashboard',
     kpis: '/api/dashboard/kpis',

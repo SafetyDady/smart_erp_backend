@@ -1,114 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, Search, Filter, MoreHorizontal, Edit2, Trash2, AlertCircle, Package } from 'lucide-react'
+import { Plus, Search, Filter, MoreHorizontal, Edit2, Trash2, AlertCircle, Package, X } from 'lucide-react'
 import { useRole } from '../components/guards/RoleContext'
 import { shapeProductsByRole } from '../services/inventory/shapeProductsByRole'
+import { fetchProducts, transformProductData, createProduct } from '../services/inventory/productsApi'
 import LoadingState from '../components/common/LoadingState'
-
-// Mock Data
-const MOCK_PRODUCTS = [
-  {
-    id: 1,
-    name: 'Ergonomic Office Chair',
-    sku: 'FUR-CHR-001',
-    type: 'product',
-    category: 'Furniture',
-    image: 'https://images.unsplash.com/photo-1505843490538-5133c6c7d0e1?w=100&q=80',
-    stockLevel: 45,
-    minStockLevel: 10,
-    unit: 'pcs',
-    price: 250.00,
-    cost: 120.00,
-    margin: 52,
-    status: 'active',
-    location: 'Warehouse A-12',
-    supplier: 'Office Comfort Co.'
-  },
-  {
-    id: 2,
-    name: 'Wireless Mechanical Keyboard',
-    sku: 'ELE-KEY-002',
-    type: 'product',
-    category: 'Electronics',
-    image: 'https://images.unsplash.com/photo-1587829741301-dc798b91add1?w=100&q=80',
-    stockLevel: 8,
-    minStockLevel: 15,
-    unit: 'pcs',
-    price: 120.00,
-    cost: 65.00,
-    margin: 45.8,
-    status: 'active',
-    location: 'Warehouse B-05',
-    supplier: 'TechGear Ltd.'
-  },
-  {
-    id: 3,
-    name: 'Oak Wood Plank (2m)',
-    sku: 'MAT-WD-001',
-    type: 'material',
-    category: 'Raw Material',
-    image: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=100&q=80',
-    stockLevel: 150,
-    minStockLevel: 50,
-    unit: 'pcs',
-    price: 0, // Not for sale
-    cost: 45.00,
-    margin: 0,
-    status: 'active',
-    location: 'Warehouse C-01',
-    supplier: 'Wood Works Co.'
-  },
-  {
-    id: 4,
-    name: 'Steel Frame Tube',
-    sku: 'MAT-STL-002',
-    type: 'material',
-    category: 'Raw Material',
-    image: 'https://images.unsplash.com/photo-1535063406552-4404398e58a0?w=100&q=80',
-    stockLevel: 300,
-    minStockLevel: 100,
-    unit: 'm',
-    price: 0,
-    cost: 15.50,
-    margin: 0,
-    status: 'active',
-    location: 'Warehouse C-02',
-    supplier: 'Metal Supply Inc.'
-  },
-  {
-    id: 5,
-    name: 'Drill Bit Set (Titanium)',
-    sku: 'CON-TLS-001',
-    type: 'consumable',
-    category: 'Tools',
-    image: 'https://images.unsplash.com/photo-1572981779307-38b8cabb2407?w=100&q=80',
-    stockLevel: 12,
-    minStockLevel: 5,
-    unit: 'set',
-    price: 0,
-    cost: 85.00,
-    margin: 0,
-    status: 'active',
-    location: 'Tool Room A',
-    supplier: 'Tool Master'
-  },
-  {
-    id: 6,
-    name: 'Safety Gloves (L)',
-    sku: 'CON-SAF-002',
-    type: 'consumable',
-    category: 'Safety Gear',
-    image: 'https://images.unsplash.com/photo-1615486511484-92e172cc416d?w=100&q=80',
-    stockLevel: 50,
-    minStockLevel: 20,
-    unit: 'pair',
-    price: 0,
-    cost: 2.50,
-    margin: 0,
-    status: 'active',
-    location: 'Tool Room B',
-    supplier: 'Safety First'
-  }
-]
 
 const ProductsPage = () => {
   const { userRole } = useRole()
@@ -116,20 +11,40 @@ const ProductsPage = () => {
   const [products, setProducts] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [typeFilter, setTypeFilter] = useState('all') // all, product, material, consumable
+  const [error, setError] = useState(null)
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
+  const [createError, setCreateError] = useState(null)
+  const [formData, setFormData] = useState({
+    name: '',
+    product_type: 'product',
+    cost: '',
+    category: '',
+    unit: 'pcs'
+  })
 
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true)
+      setError(null)
       try {
-        await new Promise(resolve => setTimeout(resolve, 600))
-        const shapedData = shapeProductsByRole(MOCK_PRODUCTS, userRole)
-        // Filter by type if not 'all'
-        const filteredData = typeFilter === 'all' 
-          ? shapedData 
-          : shapedData.filter(p => p.type === typeFilter)
-        setProducts(filteredData)
+        // Fetch products from backend API
+        const backendProducts = await fetchProducts({
+          product_type: typeFilter === 'all' ? undefined : typeFilter,
+          limit: 100
+        })
+        
+        // Transform backend data to frontend format
+        const transformedProducts = transformProductData(backendProducts)
+        
+        // Apply role-based filtering
+        const shapedData = shapeProductsByRole(transformedProducts, userRole)
+        
+        setProducts(shapedData)
       } catch (error) {
         console.error("Failed to load products", error)
+        setError(error.message)
+        setProducts([]) // Set to empty array on error
       } finally {
         setIsLoading(false)
       }
@@ -137,11 +52,202 @@ const ProductsPage = () => {
     loadData()
   }, [userRole, typeFilter])
 
+  const handleCreateProduct = async (e) => {
+    e.preventDefault()
+    setIsCreating(true)
+    setCreateError(null)
+    
+    try {
+      // Validate required fields
+      if (!formData.name.trim()) {
+        throw new Error('Product name is required')
+      }
+      
+      if (!formData.cost || parseFloat(formData.cost) < 1.0) {
+        throw new Error('Cost must be at least 1.00 THB')
+      }
+      
+      const costValue = parseFloat(formData.cost)
+      const productData = {
+        name: formData.name.trim(),
+        product_type: formData.product_type,
+        cost: costValue,
+        price: costValue, // Set price same as cost for simplicity
+        category: formData.category.trim() || null,
+        unit: formData.unit || 'pcs'
+      }
+      
+      await createProduct(productData)
+      
+      // Reset form and close modal
+      setFormData({
+        name: '',
+        product_type: 'product',
+        cost: '',
+        category: '',
+        unit: 'pcs'
+      })
+      setShowCreateModal(false)
+      
+      // Refetch products to show the new one
+      const backendProducts = await fetchProducts({
+        product_type: typeFilter === 'all' ? undefined : typeFilter,
+        limit: 100
+      })
+      const transformedProducts = transformProductData(backendProducts)
+      const shapedData = shapeProductsByRole(transformedProducts, userRole)
+      setProducts(shapedData)
+      
+    } catch (error) {
+      console.error('Failed to create product:', error)
+      setCreateError(error.message)
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
+  const handleFormChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  // Filter products by search term
+  const filteredProducts = products.filter(product => 
+    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.sku.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
   if (isLoading) {
     return (
       <div className="space-y-6">
         <LoadingState variant="title" count={1} />
         <LoadingState variant="table" count={5} />
+      </div>
+    )
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Products</h1>
+          <p className="mt-1 text-sm text-slate-500">Manage your inventory and product catalog.</p>
+        </div>
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-8">
+          <div className="text-center">
+            <AlertCircle size={48} className="mx-auto text-red-500 mb-4" />
+            <h3 className="text-lg font-semibold text-slate-800 mb-2">Failed to load products</h3>
+            <p className="text-sm text-slate-600 mb-4">{error}</p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="btn btn-primary"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Empty state
+  if (filteredProducts.length === 0 && !isLoading) {
+    const isEmpty = products.length === 0
+    const isFiltered = products.length > 0 && filteredProducts.length === 0
+    
+    return (
+      <div className="space-y-6 pb-8">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Products</h1>
+            <p className="mt-1 text-sm text-slate-500">Manage your inventory and product catalog.</p>
+          </div>
+          <button className="btn btn-primary flex items-center gap-2">
+            <Plus size={18} />
+            Add Product
+          </button>
+        </div>
+
+        {/* Filters & Search */}
+        <div className="flex flex-col sm:flex-row gap-4 bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+            <input 
+              type="text" 
+              placeholder="Search products by name or SKU..." 
+              className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          
+          {/* Type Filter Tabs */}
+          <div className="flex bg-slate-100 p-1 rounded-lg">
+            <button 
+              onClick={() => setTypeFilter('all')}
+              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${typeFilter === 'all' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              All
+            </button>
+            <button 
+              onClick={() => setTypeFilter('product')}
+              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${typeFilter === 'product' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Products
+            </button>
+            <button 
+              onClick={() => setTypeFilter('material')}
+              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${typeFilter === 'material' ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Materials
+            </button>
+            <button 
+              onClick={() => setTypeFilter('consumable')}
+              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${typeFilter === 'consumable' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Consumables
+            </button>
+          </div>
+        </div>
+
+        {/* Empty State */}
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-8">
+          <div className="text-center">
+            <Package size={48} className="mx-auto text-slate-400 mb-4" />
+            {isEmpty ? (
+              <>
+                <h3 className="text-lg font-semibold text-slate-800 mb-2">No products found</h3>
+                <p className="text-sm text-slate-600 mb-4">Get started by adding your first product to the inventory.</p>
+                {(userRole === 'owner' || userRole === 'manager') && (
+                  <button 
+                    onClick={() => setShowCreateModal(true)}
+                    className="btn btn-primary flex items-center gap-2 mx-auto"
+                  >
+                    <Plus size={18} />
+                    Add Product
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                <h3 className="text-lg font-semibold text-slate-800 mb-2">No matching products</h3>
+                <p className="text-sm text-slate-600 mb-4">
+                  No products match your current search criteria. Try adjusting your search or filter.
+                </p>
+                <button 
+                  onClick={() => {
+                    setSearchTerm('')
+                    setTypeFilter('all')
+                  }}
+                  className="btn btn-secondary"
+                >
+                  Clear Filters
+                </button>
+              </>
+            )}
+          </div>
+        </div>
       </div>
     )
   }
@@ -154,10 +260,15 @@ const ProductsPage = () => {
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Products</h1>
           <p className="mt-1 text-sm text-slate-500">Manage your inventory and product catalog.</p>
         </div>
-        <button className="btn btn-primary flex items-center gap-2">
-          <Plus size={18} />
-          Add Product
-        </button>
+        {(userRole === 'owner' || userRole === 'manager') && (
+          <button 
+            onClick={() => setShowCreateModal(true)}
+            className="btn btn-primary flex items-center gap-2"
+          >
+            <Plus size={18} />
+            Add Product
+          </button>
+        )}
       </div>
 
       {/* Filters & Search */}
@@ -224,9 +335,15 @@ const ProductsPage = () => {
                   Stock
                 </th>
                 {/* Price Column - Hidden for Staff */}
-                {products[0]?.price !== undefined && (
+                {filteredProducts[0]?.price !== undefined && (
                   <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
                     Price
+                  </th>
+                )}
+                {/* Cost Column - Only for Owner */}
+                {userRole === 'owner' && filteredProducts[0]?.cost !== undefined && (
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    Cost
                   </th>
                 )}
                 <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -238,7 +355,14 @@ const ProductsPage = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {products.map((product) => (
+              {filteredProducts.map((product) => {
+                // Skip rendering if product is invalid
+                if (!product || !product.id) {
+                  console.warn('Invalid product data:', product)
+                  return null
+                }
+                
+                return (
                 <tr key={product.id} className="hover:bg-slate-50/80 transition-colors group">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="h-10 w-10 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden">
@@ -288,7 +412,14 @@ const ProductsPage = () => {
                   {/* Price Cell - Hidden for Staff */}
                   {product.price !== undefined && (
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 font-mono">
-                      ${product.price.toFixed(2)}
+                      ฿{(product.price || 0).toFixed(2)}
+                    </td>
+                  )}
+
+                  {/* Cost Cell - Only for Owner */}
+                  {userRole === 'owner' && product.cost !== undefined && (
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 font-mono">
+                      ฿{(product.cost || 0).toFixed(2)}
                     </td>
                   )}
 
@@ -312,11 +443,135 @@ const ProductsPage = () => {
                     </div>
                   </td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* Create Product Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-slate-800">Add New Product</h3>
+              <button 
+                onClick={() => setShowCreateModal(false)}
+                className="p-1 text-slate-400 hover:text-slate-600"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleCreateProduct} className="space-y-4">
+              {/* Product Name */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Product Name *
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => handleFormChange('name', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  placeholder="Enter product name"
+                  required
+                />
+              </div>
+              
+              {/* Product Type */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Type *
+                </label>
+                <select
+                  value={formData.product_type}
+                  onChange={(e) => handleFormChange('product_type', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                >
+                  <option value="product">Product</option>
+                  <option value="material">Material</option>
+                  <option value="consumable">Consumable</option>
+                </select>
+              </div>
+              
+              {/* Cost - Only for Owner/Manager */}
+              {(userRole === 'owner' || userRole === 'manager') && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Cost (THB) *
+                    <span className="text-xs text-slate-500 ml-1">(minimum 1.00)</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="1"
+                    value={formData.cost}
+                    onChange={(e) => handleFormChange('cost', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    placeholder="1.00"
+                    required
+                  />
+                </div>
+              )}
+              
+              {/* Category */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Category
+                </label>
+                <input
+                  type="text"
+                  value={formData.category}
+                  onChange={(e) => handleFormChange('category', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  placeholder="Optional category"
+                />
+              </div>
+              
+              {/* Unit */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Unit
+                </label>
+                <input
+                  type="text"
+                  value={formData.unit}
+                  onChange={(e) => handleFormChange('unit', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  placeholder="pcs"
+                />
+              </div>
+              
+              {/* Error Message */}
+              {createError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-600">{createError}</p>
+                </div>
+              )}
+              
+              {/* Actions */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="flex-1 px-4 py-2 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreating || !formData.name.trim() || (userRole !== 'staff' && !formData.cost)}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isCreating ? 'Creating...' : 'Create Product'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

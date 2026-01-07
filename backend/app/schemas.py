@@ -36,10 +36,10 @@ class CreateProductRequest(BaseModel):
     price: Optional[float] = Field(None, ge=0)
     
     @validator('cost')
-    def validate_material_cost(cls, v, values):
-        """Validate material cost >= 1 THB"""
-        if values.get('product_type') == ProductTypeSchema.MATERIAL and v < 1.0:
-            raise ValueError('Material cost must be >= 1.00 THB')
+    def validate_cost(cls, v, values):
+        """Validate cost >= 1 THB for all product types"""
+        if v < 1.0:
+            raise ValueError('Cost must be >= 1.00 THB')
         return v
 
 

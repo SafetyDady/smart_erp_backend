@@ -18,10 +18,11 @@ export const shapeProductsByRole = (rawProducts, userRole) => {
       id: product.id,
       name: product.name,
       sku: product.sku,
+      type: product.type, // Add type field for filtering
       category: product.category,
       image: product.image,
-      stockLevel: product.stockLevel,
-      minStockLevel: product.minStockLevel,
+      stockLevel: product.stockLevel || 0, // Default to 0 if not provided
+      minStockLevel: product.minStockLevel || 10, // Default min stock
       unit: product.unit,
       status: product.status, // active, discontinued
       location: product.location,

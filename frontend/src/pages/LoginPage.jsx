@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useRole } from '../components/guards/RoleContext'
+import { useAuth } from '../components/guards/AuthContext'
 
 /**
  * LoginPage - User authentication page
@@ -11,6 +12,7 @@ export default function LoginPage({ onLoginSuccess }) {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const { setUserRole } = useRole()
+  const { login } = useAuth()
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -18,29 +20,9 @@ export default function LoginPage({ onLoginSuccess }) {
     setError('')
 
     try {
-      // Call backend login API
-      const response = await fetch('http://localhost:8001/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          email,
-          password
-        })
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('Login failed:', response.status, errorText)
-        throw new Error('Invalid credentials')
-      }
-
-      const data = await response.json()
+      // Use AuthContext login function
+      const data = await login(email, password)
       console.log('Login successful, token received:', !!data.access_token)
-      
-      // Store token
-      localStorage.setItem('token', data.access_token)
       
       // Fetch user info and set role
       const userResponse = await fetch('http://localhost:8001/api/auth/me', {

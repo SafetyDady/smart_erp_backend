@@ -59,7 +59,10 @@ function AppContent() {
   }
 
   const handleLogout = () => {
+    console.log('App: handleLogout called')
     logout()
+    // Force immediate redirect to login
+    setCurrentPage('login')
   }
 
   // Render current page content

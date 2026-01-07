@@ -2,6 +2,8 @@
 
 This document tracks the evolution of the system, phase by phase. It serves as a historical record of what was implemented, when, and the status of each component.
 
+**Backend Server File:** `simple_start.py` (working file - use this, NOT start_server.py)
+
 ---
 
 ## Phase 12.2 (Expanded Scope)

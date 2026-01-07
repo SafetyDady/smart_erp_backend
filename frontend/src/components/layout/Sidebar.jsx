@@ -27,9 +27,20 @@ const Sidebar = ({
   isOpen, 
   onClose, 
   onNavigate = () => {},
+  onLogout = () => {},
   isCollapsed = false 
 }) => {
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false)
+
+  const handleLogout = () => {
+    console.log('Sidebar: Sign out button clicked')
+    try {
+      onLogout()
+      console.log('Sidebar: onLogout called successfully')
+    } catch (error) {
+      console.error('Sidebar: Error during logout:', error)
+    }
+  }
 
   // Default navigation items if none provided
   const defaultNavigationItems = [
@@ -202,7 +213,10 @@ const Sidebar = ({
             )}
           </div>
           {!effectiveCollapsed && (
-            <button className="mt-4 w-full flex items-center justify-center px-4 py-2 text-xs font-medium text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100">
+            <button 
+              onClick={handleLogout}
+              className="mt-4 w-full flex items-center justify-center px-4 py-2 text-xs font-medium text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
+            >
               <LogOut size={14} className="mr-2" />
               Sign Out
             </button>

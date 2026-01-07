@@ -15,7 +15,8 @@ const AppLayout = ({
   notifications = [],
   children,
   onNavigate = () => {},
-  onRoleChange = null
+  onRoleChange = null,
+  onLogout = () => {}
 }) => {
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
   // We need to track sidebar collapsed state here to adjust main content margin
@@ -48,6 +49,7 @@ const AppLayout = ({
         isOpen={sidebarOpen} 
         onClose={handleSidebarClose}
         onNavigate={onNavigate}
+        onLogout={onLogout}
       />
 
       {/* Main content column */}

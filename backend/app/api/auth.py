@@ -28,13 +28,18 @@ async def login(
     db: Session = Depends(get_db)
 ):
     """Login user and return JWT token"""
+    print(f"🔐 Login attempt for email: {user_login.email}")
+    
     user = authenticate_user(db, user_login.email, user_login.password)
     if not user:
+        print(f"❌ Authentication failed for: {user_login.email}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    
+    print(f"✅ Authentication successful for: {user_login.email}, role: {user.role}")
     
     # Update last login
     user.last_login = func.now()
