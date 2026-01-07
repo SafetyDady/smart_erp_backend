@@ -33,8 +33,10 @@ const RoleGuard = ({
   // Check permission-based access  
   let hasPermissionAccess = true
   if (requiredPermissions.length > 0) {
+    // Check if role has ANY of the required permissions (OR logic)
+    // Change to .every() if you want AND logic
     hasPermissionAccess = requiredPermissions.some(permission => 
-      hasPermission(permission)
+      hasPermission(effectiveRole, permission)
     )
   }
 
