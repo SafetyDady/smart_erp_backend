@@ -77,12 +77,18 @@ const Sidebar = ({
   const navigationItems = menuItems.length > 0 ? menuItems : defaultNavigationItems
   const effectiveCollapsed = isCollapsed || sidebarCollapsed
 
+  // Using CSS variables for width to ensure consistency with AppLayout
+  const sidebarWidthClass = effectiveCollapsed ? 'w-[var(--sidebar-collapsed-width)]' : 'w-[var(--sidebar-width)]'
+
   const sidebarClasses = `
-    ${effectiveCollapsed ? 'w-20' : 'w-64'} 
+    ${sidebarWidthClass}
     ${isOpen ? 'translate-x-0' : '-translate-x-full'}
     lg:translate-x-0 
-    fixed inset-y-0 left-0 z-30 bg-white/70 backdrop-blur-xl border border-white/20 shadow-sm transition-all duration-300 ease-in-out
-    flex flex-col rounded-r-2xl
+    fixed inset-y-0 left-0 z-30 
+    glass
+    transition-all duration-300 ease-in-out
+    flex flex-col
+    border-r border-white/20
   `
 
   const handleItemClick = (item) => {
@@ -100,9 +106,9 @@ const Sidebar = ({
     <div className={sidebarClasses}>
       <div className="flex h-full flex-col">
         {/* Logo Area */}
-        <div className="h-16 flex items-center justify-center border-b border-white/20 px-4">
+        <div className="h-[var(--topbar-height)] flex items-center justify-center border-b border-white/10 px-4">
           <div className={`font-bold text-xl tracking-wider flex items-center ${effectiveCollapsed && 'justify-center'}`}>
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center mr-2">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center mr-2 shadow-lg shadow-blue-500/30">
               <span className="text-white font-bold text-sm">S</span>
             </div>
             {!effectiveCollapsed && <span className="text-slate-800">Smart ERP</span>}
@@ -117,7 +123,7 @@ const Sidebar = ({
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 py-6 px-3 space-y-2 overflow-y-auto">
+        <nav className="flex-1 py-6 px-3 space-y-2 overflow-y-auto scrollbar-thin">
           {navigationItems.map((item) => {
             const isActive = currentPage === item.id
             return (
@@ -128,19 +134,21 @@ const Sidebar = ({
                     className={`
                       flex items-center w-full p-3 rounded-xl transition-all duration-200
                       ${isActive 
-                        ? 'bg-blue-600 text-white shadow-sm' 
-                        : 'text-slate-600 hover:bg-white/50 hover:text-slate-800'}
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' 
+                        : 'text-slate-600 hover:bg-white/60 hover:text-slate-900'}
                       ${effectiveCollapsed && 'justify-center'}
                     `}
                   >
-                    <item.icon size={18} className={`${isActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-700'}`} />
+                    <item.icon size={20} className={`${isActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-700'} transition-colors`} />
                     {!effectiveCollapsed && <span className="ml-3 font-medium text-sm">{item.name}</span>}
                   </button>
                   
                   {/* Tooltip for collapsed state */}
                   {effectiveCollapsed && (
-                    <div className="absolute left-full ml-2 px-3 py-2 bg-slate-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity">
+                    <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 bg-slate-800 text-white text-xs font-medium rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity shadow-xl">
                       {item.name}
+                      {/* Arrow */}
+                      <div className="absolute left-0 top-1/2 -translate-x-1 -translate-y-1/2 border-4 border-transparent border-r-slate-800"></div>
                     </div>
                   )}
                 </div>
@@ -150,9 +158,9 @@ const Sidebar = ({
         </nav>
 
         {/* User Profile (Bottom) */}
-        <div className="p-4 border-t border-white/20">
+        <div className="p-4 border-t border-white/10 bg-white/30 backdrop-blur-sm">
           <div className={`flex items-center ${effectiveCollapsed && 'justify-center'}`}>
-            <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold shadow-sm">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold shadow-md ring-2 ring-white/50">
               U
             </div>
             {!effectiveCollapsed && (
@@ -163,7 +171,7 @@ const Sidebar = ({
             )}
           </div>
           {!effectiveCollapsed && (
-            <button className="mt-4 w-full flex items-center justify-center px-4 py-2 text-xs font-medium text-slate-600 hover:text-slate-800 hover:bg-white/50 rounded-lg transition-colors">
+            <button className="mt-4 w-full flex items-center justify-center px-4 py-2 text-xs font-medium text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100">
               <LogOut size={14} className="mr-2" />
               Sign Out
             </button>
@@ -174,7 +182,7 @@ const Sidebar = ({
       {/* Collapse Toggle - Desktop only */}
       <button 
         onClick={toggleCollapse}
-        className="hidden lg:block absolute -right-3 top-20 bg-blue-600 text-white p-1.5 rounded-full shadow-sm hover:bg-blue-700 transition-colors z-50"
+        className="hidden lg:flex absolute -right-3 top-24 bg-white text-slate-600 border border-slate-200 p-1.5 rounded-full shadow-md hover:text-blue-600 hover:border-blue-200 transition-all z-50 items-center justify-center w-7 h-7"
       >
         {effectiveCollapsed ? <Menu size={14} /> : <ChevronLeft size={14} />}
       </button>

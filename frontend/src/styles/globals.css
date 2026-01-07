@@ -3,14 +3,27 @@
 @tailwind utilities;
 
 /* Global styles for Smart ERP - Glassmorphic Design */
+:root {
+  --sidebar-width: 16rem; /* 256px */
+  --sidebar-collapsed-width: 5rem; /* 80px */
+  --topbar-height: 3.5rem; /* 56px */
+  --glass-border: rgba(255, 255, 255, 0.2);
+  --glass-bg: rgba(255, 255, 255, 0.8);
+  --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+}
+
 body {
   font-family: 'Inter', 'Segoe UI', 'Roboto', sans-serif;
-  @apply bg-slate-50;
+  @apply bg-slate-50 text-slate-900;
 }
 
 /* Glassmorphic utilities */
 .glass {
-  @apply bg-white/80 backdrop-blur-md border border-white/20;
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
 }
 
 .glass-dark {
@@ -19,25 +32,32 @@ body {
 
 /* Custom component styles */
 .btn-primary {
-  @apply bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200;
+  @apply bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 shadow-sm hover:shadow-md;
 }
 
 .btn-secondary {
-  @apply bg-slate-200 text-slate-900 px-4 py-2 rounded-md hover:bg-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition-all duration-200;
+  @apply bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-md hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition-all duration-200;
+}
+
+.btn-ghost {
+  @apply text-slate-600 hover:bg-slate-100 hover:text-slate-900 px-3 py-2 rounded-md transition-colors duration-200;
 }
 
 /* Card styles */
 .card {
-  @apply bg-white/80 backdrop-blur-md rounded-xl border border-white/20 shadow-lg shadow-slate-200/50 p-6;
+  @apply bg-white rounded-xl border border-slate-200 shadow-sm p-6 transition-all duration-200 hover:shadow-md;
 }
 
-.card-dark {
-  @apply bg-slate-800/80 backdrop-blur-md rounded-xl border border-slate-700/30 shadow-lg shadow-slate-900/20 p-6;
+.card-gradient {
+  background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.9) 100%);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.5);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
 }
 
 /* Sidebar smooth animations */
-.sidebar-enter {
-  @apply transition-all duration-300 ease-in-out;
+.sidebar-transition {
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), margin 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Loading animations */
@@ -66,7 +86,7 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-slate-100;
+  @apply bg-transparent;
 }
 
 ::-webkit-scrollbar-thumb {
@@ -80,4 +100,9 @@ body {
 /* Focus styles */
 .focus-ring {
   @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white;
+}
+
+/* Utility for main content offset */
+.main-content {
+  transition: padding-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }

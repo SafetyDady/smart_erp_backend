@@ -18,7 +18,10 @@ const AppLayout = ({
   onRoleChange = null
 }) => {
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
-
+  // We need to track sidebar collapsed state here to adjust main content margin
+  // In a real app, this might be lifted up or managed via context
+  // For now, we'll assume the sidebar manages its own state but we use CSS variables for layout
+  
   const handleMenuClick = () => {
     setSidebarOpen(true)
   }
@@ -48,24 +51,27 @@ const AppLayout = ({
       />
 
       {/* Main content column */}
-      <div className="flex-1 flex flex-col min-h-screen lg:ml-64">
+      {/* Use peer-checked or similar technique if we want pure CSS collapse, 
+          but here we rely on the sidebar being fixed width and main content having margin.
+          The Sidebar component uses w-[var(--sidebar-width)] by default.
+          We need to match that margin here.
+      */}
+      <div className="flex-1 flex flex-col min-h-screen lg:pl-[var(--sidebar-width)] transition-all duration-300 ease-in-out">
         {/* TopBar - Inside main column, sticky top */}
-        <div className="p-6">
-          <TopBar 
-            userRole={userRole}
-            userName={userName}
-            notifications={notifications}
-            onMenuClick={handleMenuClick}
-            onRoleChange={onRoleChange}
-          />
+        <TopBar 
+          userRole={userRole}
+          userName={userName}
+          notifications={notifications}
+          onMenuClick={handleMenuClick}
+          onRoleChange={onRoleChange}
+        />
           
-          {/* Page content - Scrollable area */}
-          <main className="flex-1 overflow-y-auto">
-            <div className="max-w-7xl mx-auto">
-              {children}
-            </div>
-          </main>
-        </div>
+        {/* Page content - Scrollable area */}
+        <main className="flex-1 p-6 overflow-y-auto">
+          <div className="max-w-7xl mx-auto animate-fade-in">
+            {children}
+          </div>
+        </main>
       </div>
     </div>
   )
