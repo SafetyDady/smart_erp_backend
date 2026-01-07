@@ -4,6 +4,7 @@ import AppLayout from './components/layout/AppLayout'
 import DashboardPage from './pages/DashboardPage'
 import ProductsPage from './pages/ProductsPage'
 import OrdersPage from './pages/OrdersPage'
+import CustomersPage from './pages/CustomersPage'
 
 /**
  * App - Root application component
@@ -50,7 +51,7 @@ function AppContent() {
       case 'orders':
         return <OrdersPage />
       case 'customers':
-        return <div className="p-8 text-center text-slate-500">Customers Module (Coming Soon)</div>
+        return <CustomersPage />
       default:
         return <DashboardPage />
     }
