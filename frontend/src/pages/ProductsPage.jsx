@@ -70,6 +70,7 @@ const ProductsPage = () => {
       const costValue = parseFloat(formData.cost)
       const productData = {
         name: formData.name.trim(),
+        sku: formData.sku.trim() || null,
         product_type: formData.product_type,
         cost: costValue,
         price: costValue, // Set price same as cost for simplicity
@@ -82,6 +83,7 @@ const ProductsPage = () => {
       // Reset form and close modal
       setFormData({
         name: '',
+        sku: '',
         product_type: 'product',
         cost: '',
         category: '',
@@ -100,7 +102,16 @@ const ProductsPage = () => {
       
     } catch (error) {
       console.error('Failed to create product:', error)
-      setCreateError(error.message)
+      if (error.response?.status === 409) {
+        const detail = error.response?.data?.detail || ''
+        if (detail.includes('SKU already exists')) {
+          setCreateError('SKU ซ้ำ กรุณาใช้ SKU อื่น')
+        } else {
+          setCreateError(detail)
+        }
+      } else {
+        setCreateError(error.message || 'Failed to create product. Please try again.')
+      }
     } finally {
       setIsCreating(false)
     }
@@ -477,6 +488,21 @@ const ProductsPage = () => {
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   placeholder="Enter product name"
                   required
+                />
+              </div>
+              
+              {/* SKU */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  SKU
+                  <span className="text-xs text-slate-500 ml-1">(optional - auto-generated if empty)</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.sku}
+                  onChange={(e) => handleFormChange('sku', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  placeholder="Leave empty for auto-generation"
                 />
               </div>
               

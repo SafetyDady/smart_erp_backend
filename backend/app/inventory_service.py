@@ -3,9 +3,11 @@ Phase 13B: Inventory Core Service
 Transactional stock movement engine with role-based authorization
 """
 
+import time
 from typing import List, Optional
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select, func
+from sqlalchemy.exc import IntegrityError
 from fastapi import HTTPException, status
 
 from .models import Product, StockBalance, StockMovement, ProductType, MovementType, UserRole
@@ -77,12 +79,14 @@ class InventoryService:
             self.db.refresh(product)
             return product
             
+        except IntegrityError as e:
+            self.db.rollback()
+            if "UNIQUE constraint failed: products.sku" in str(e):
+                raise InventoryError("SKU already exists")
+            raise InventoryError(f"Database constraint violation: {str(e)}")
         except Exception as e:
             self.db.rollback()
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Failed to create product: {str(e)}"
-            )
+            raise InventoryError(f"Failed to create product: {str(e)}")
     
     def execute_movement(
         self,
@@ -217,13 +221,92 @@ class InventoryService:
         products = query.limit(limit).offset(offset).all()
         return products
     
-    def get_low_stock_items(self, threshold: float = LOW_STOCK_THRESHOLD) -> List[Product]:
+    def get_low_stock_items(self, threshold: float = LOW_STOCK_THRESHOLD) -> dict:
         """Get products with balance below threshold"""
-        low_stock = self.db.query(Product).join(StockBalance).filter(
+        low_stock_products = self.db.query(Product).join(StockBalance).filter(
             StockBalance.on_hand < threshold
-        ).all()
+        ).options(joinedload(Product.stock_balance)).all()
         
-        return low_stock
+        # Sort by lowest stock first and get top 5
+        sorted_products = sorted(low_stock_products, key=lambda p: p.stock_balance.on_hand)[:5]
+        
+        return {
+            "count": len(low_stock_products),
+            "threshold": int(threshold),
+            "items": [
+                {
+                    "id": product.id,
+                    "name": product.name,
+                    "on_hand": product.stock_balance.on_hand,
+                    "unit": product.unit
+                }
+                for product in sorted_products
+            ]
+        }
+        
+    def update_product(
+        self,
+        product_id: int,
+        name: Optional[str] = None,
+        sku: Optional[str] = None,
+        category: Optional[str] = None,
+        unit: Optional[str] = None,
+        price: Optional[float] = None,
+        status: Optional[str] = None
+    ) -> Product:
+        """Update product with SKU lock policy"""
+        try:
+            product = self.db.query(Product).filter(Product.id == product_id).first()
+            if not product:
+                raise InventoryError(f"Product with ID {product_id} not found")
+                
+            # Check SKU lock policy if SKU is being changed
+            if sku and sku != product.sku:
+                # Normalize SKU: trim and uppercase  
+                sku = sku.strip().upper()
+                
+                # Check if product has any stock movements
+                has_movements = self.db.query(StockMovement).filter(
+                    StockMovement.product_id == product_id
+                ).first() is not None
+                
+                if has_movements:
+                    raise InventoryError("SKU is locked after movements exist")
+                    
+                # Check for case-insensitive duplicate SKU
+                existing_product = self.db.query(Product).filter(
+                    func.upper(Product.sku) == sku.upper(),
+                    Product.id != product_id
+                ).first()
+                if existing_product:
+                    raise InventoryError("SKU already exists")
+                    
+            # Update fields
+            if name is not None:
+                product.name = name
+            if sku is not None:
+                product.sku = sku
+            if category is not None:
+                product.category = category
+            if unit is not None:
+                product.unit = unit
+            if price is not None:
+                product.price = price
+                
+            self.db.commit()
+            self.db.refresh(product)
+            return product
+            
+        except IntegrityError as e:
+            self.db.rollback()
+            if "UNIQUE constraint failed: products.sku" in str(e):
+                raise InventoryError("SKU already exists")
+            raise InventoryError(f"Database constraint violation: {str(e)}")
+        except Exception as e:
+            self.db.rollback()
+            if "Product with ID" in str(e) and "not found" in str(e):
+                raise InventoryError(f"Product with ID {product_id} not found")
+            raise InventoryError(f"Failed to update product: {str(e)}")
     
     def adjust_stock(
         self,

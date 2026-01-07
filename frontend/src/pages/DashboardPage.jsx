@@ -4,6 +4,7 @@ import LoadingState from '../components/common/LoadingState'
 import KPISection from '../components/dashboard/KPISection'
 import ChartsSection from '../components/dashboard/ChartsSection'
 import TransactionSection from '../components/dashboard/TransactionSection'
+import LowStockWidget from '../components/dashboard/LowStockWidget'
 import { useRole } from '../components/guards/RoleContext'
 import { shapeKpisByRole } from '../services/dashboard/shapeKpisByRole'
 import { shapeChartsByRole } from '../services/dashboard/shapeChartsByRole'
@@ -161,6 +162,15 @@ const DashboardPage = () => {
           userRole={userRole}
           chartsData={dashboardData.charts}
         />
+      </ErrorBoundary>
+
+      {/* Low Stock Alert Widget */}
+      <ErrorBoundary fallback={(error) => (
+        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+          <p className="text-red-800">Failed to load low stock alerts: {error.message}</p>
+        </div>
+      )}>
+        <LowStockWidget />
       </ErrorBoundary>
 
       {/* Transactions Section */}

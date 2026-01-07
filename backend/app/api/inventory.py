@@ -10,7 +10,7 @@ from typing import List, Optional
 from ..database import get_db, get_current_user_role, UserRole
 from ..inventory_service import InventoryService, InventoryError
 from ..schemas import (
-    CreateProductRequest, ExecuteMovementRequest, AdjustStockRequest,
+    CreateProductRequest, UpdateProductRequest, ExecuteMovementRequest, AdjustStockRequest,
     ProductResponse, StockBalanceResponse, MovementResponse, 
     MovementHistoryResponse, LowStockResponse
 )
@@ -49,6 +49,49 @@ def create_product(
         )
         return ProductResponse.from_orm(product)
     except InventoryError as e:
+        if "already exists" in str(e):
+            raise HTTPException(status_code=409, detail="SKU already exists")
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.patch("/products/{product_id}", response_model=ProductResponse)
+def update_product(
+    product_id: int,
+    request: UpdateProductRequest,
+    db: Session = Depends(get_db),
+    user_role: UserRole = Depends(get_current_user_role)
+):
+    """
+    Update product master data
+    
+    Requires: Owner or Manager role
+    SKU Lock Policy: SKU cannot be changed after stock movements exist
+    """
+    if user_role not in [UserRole.OWNER, UserRole.MANAGER]:
+        raise HTTPException(
+            status_code=403,
+            detail="Only owners and managers can update products"
+        )
+        
+    service = InventoryService(db)
+    try:
+        product = service.update_product(
+            product_id=product_id,
+            name=request.name,
+            sku=request.sku,
+            category=request.category,
+            unit=request.unit,
+            price=request.price,
+            status=request.status
+        )
+        return ProductResponse.from_orm(product)
+    except InventoryError as e:
+        if "already exists" in str(e):
+            raise HTTPException(status_code=409, detail="SKU already exists")
+        if "is locked" in str(e):
+            raise HTTPException(status_code=409, detail=str(e)) 
+        if "not found" in str(e):
+            raise HTTPException(status_code=404, detail=str(e))
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -209,44 +252,6 @@ def get_movement_history(
     )
 
 
-@router.get("/low-stock", response_model=LowStockResponse)
-def get_low_stock_products(
-    db: Session = Depends(get_db),
-    user_role: UserRole = Depends(get_current_user_role)
-):
-    """
-    Get products with low stock levels
-    
-    Requires: Owner or Manager role
-    """
-    if user_role not in [UserRole.OWNER, UserRole.MANAGER]:
-        raise HTTPException(
-            status_code=403, 
-            detail="Only owners and managers can view low stock report"
-        )
-    
-    service = InventoryService(db)
-    low_stock_items = service.get_low_stock_products()
-    
-    response_items = []
-    for item in low_stock_items:
-        response_items.append({
-            "product_id": item["product_id"],
-            "name": item["name"], 
-            "sku": item["sku"],
-            "product_type": item["product_type"],
-            "on_hand": item["on_hand"],
-            "unit": item["unit"],
-            "threshold": service.low_stock_threshold
-        })
-    
-    return LowStockResponse(
-        low_stock_products=response_items,
-        threshold=service.low_stock_threshold,
-        total_count=len(response_items)
-    )
-
-
 @router.get("/products", response_model=List[ProductResponse])
 def list_products(
     product_type: Optional[str] = Query(None, description="Filter by product type"),
@@ -270,3 +275,19 @@ def list_products(
     )
     
     return [ProductResponse.from_orm(product) for product in products]
+
+
+@router.get("/low-stock")
+def get_low_stock_products(
+    db: Session = Depends(get_db),
+    user_role: UserRole = Depends(get_current_user_role)
+):
+    """
+    Get low stock products count and top items
+    
+    Accessible to: All authenticated users
+    Returns: count and top 5 low stock items (name + on_hand only)
+    """
+    service = InventoryService(db)
+    low_stock_data = service.get_low_stock_items()
+    return low_stock_data

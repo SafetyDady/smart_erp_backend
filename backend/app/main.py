@@ -17,6 +17,7 @@ allowed_origins = [
     "http://localhost:3000",  # Local dev (Next.js)
     "http://localhost:5173",  # Local dev (Vite)
     "http://localhost:5174",  # Local dev (Vite alternative port)
+    "http://localhost:5175",  # Local dev (Vite alternative port)
     "https://*.vercel.app",   # Vercel deployments
     # Add your specific Vercel domain here:
     # "https://your-frontend.vercel.app",

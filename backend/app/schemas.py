@@ -28,7 +28,7 @@ class MovementTypeSchema(str, Enum):
 class CreateProductRequest(BaseModel):
     """Create product request"""
     name: str = Field(..., min_length=1, max_length=255)
-    sku: str = Field(..., min_length=1, max_length=100)
+    sku: Optional[str] = Field(None, min_length=1, max_length=100)
     product_type: ProductTypeSchema
     category: Optional[str] = Field(None, max_length=100)
     unit: str = Field("pcs", max_length=50)
@@ -41,6 +41,16 @@ class CreateProductRequest(BaseModel):
         if v < 1.0:
             raise ValueError('Cost must be >= 1.00 THB')
         return v
+
+
+class UpdateProductRequest(BaseModel):
+    """Update product request"""
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    sku: Optional[str] = Field(None, min_length=1, max_length=100) 
+    category: Optional[str] = Field(None, max_length=100)
+    unit: Optional[str] = Field(None, max_length=50)
+    price: Optional[float] = Field(None, ge=0)
+    status: Optional[str] = Field(None)
 
 
 class ExecuteMovementRequest(BaseModel):
