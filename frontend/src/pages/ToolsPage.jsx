@@ -9,7 +9,10 @@ import {
   Clock, 
   User,
   History,
-  Calculator
+  Calculator,
+  MoreHorizontal,
+  Edit2,
+  Trash2
 } from 'lucide-react'
 import { useRole } from '../components/guards/RoleContext'
 
@@ -98,12 +101,18 @@ const ToolsPage = () => {
   const { userRole } = useRole()
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [categoryFilter, setCategoryFilter] = useState('all')
+
+  // Extract unique categories for filter dropdown
+  const categories = ['all', ...new Set(MOCK_TOOLS.map(t => t.category))]
 
   const filteredTools = MOCK_TOOLS.filter(tool => {
     const matchesSearch = tool.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           tool.serialNumber.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === 'all' || tool.status === statusFilter
-    return matchesSearch && matchesStatus
+    const matchesCategory = categoryFilter === 'all' || tool.category === categoryFilter
+    
+    return matchesSearch && matchesStatus && matchesCategory
   })
 
   const getStatusBadge = (status) => {
@@ -160,7 +169,7 @@ const ToolsPage = () => {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4 bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+      <div className="flex flex-col lg:flex-row gap-4 bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
           <input 
@@ -171,101 +180,129 @@ const ToolsPage = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="flex bg-slate-100 p-1 rounded-lg">
-          {['all', 'available', 'in_use', 'maintenance'].map(status => (
-            <button 
-              key={status}
-              onClick={() => setStatusFilter(status)}
-              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all capitalize ${statusFilter === status ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              {status.replace('_', ' ')}
-            </button>
-          ))}
+        
+        <div className="flex flex-wrap gap-2">
+          {/* Category Filter */}
+          <select 
+            className="px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+          >
+            {categories.map(cat => (
+              <option key={cat} value={cat}>
+                {cat === 'all' ? 'All Categories' : cat}
+              </option>
+            ))}
+          </select>
+
+          {/* Status Filter Tabs */}
+          <div className="flex bg-slate-100 p-1 rounded-lg">
+            {['all', 'available', 'in_use', 'maintenance'].map(status => (
+              <button 
+                key={status}
+                onClick={() => setStatusFilter(status)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all capitalize ${statusFilter === status ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                {status.replace('_', ' ')}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Tools Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {filteredTools.map(tool => {
-          const depreciation = calculateDepreciation(tool.purchasePrice, tool.purchaseDate, tool.usefulLifeYears)
-          
-          return (
-            <div key={tool.id} className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden group">
-              <div className="flex flex-col sm:flex-row h-full">
-                {/* Image Section */}
-                <div className="sm:w-40 h-48 sm:h-auto bg-slate-100 relative">
-                  <img src={tool.image} alt={tool.name} className="w-full h-full object-cover" />
-                  <div className="absolute top-2 left-2">
-                    {getStatusBadge(tool.status)}
-                  </div>
-                </div>
-
-                {/* Content Section */}
-                <div className="flex-1 p-5 flex flex-col justify-between">
-                  <div>
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <h3 className="font-bold text-slate-800 text-lg">{tool.name}</h3>
-                        <p className="text-xs text-slate-500 font-mono">{tool.serialNumber}</p>
+      {/* Tools Table */}
+      <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-slate-100">
+            <thead className="bg-slate-50/50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-16">
+                  Image
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Tool Info
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Category
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Current Location / User
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Book Value
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filteredTools.map((tool) => {
+                const depreciation = calculateDepreciation(tool.purchasePrice, tool.purchaseDate, tool.usefulLifeYears)
+                
+                return (
+                  <tr key={tool.id} className="hover:bg-slate-50/80 transition-colors group">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="h-10 w-10 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden">
+                        <img src={tool.image} alt={tool.name} className="h-full w-full object-cover" />
                       </div>
-                      <div className="text-right">
-                        <div className="text-sm font-bold text-slate-700">฿{depreciation.currentValue.toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
-                        <div className="text-[10px] text-slate-400">Book Value</div>
-                      </div>
-                    </div>
-
-                    {/* Borrowing Info */}
-                    {tool.status === 'in_use' && (
-                      <div className="bg-blue-50 rounded-lg p-3 mb-3 border border-blue-100">
-                        <div className="flex items-center gap-2 text-sm text-blue-800 font-medium mb-1">
-                          <User size={14} />
-                          {tool.borrowedBy}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm font-medium text-slate-900">{tool.name}</div>
+                      <div className="text-xs text-slate-500 font-mono mt-0.5">{tool.serialNumber}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
+                        {tool.category}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {getStatusBadge(tool.status)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {tool.status === 'in_use' ? (
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-blue-700 flex items-center gap-1">
+                            <User size={12} /> {tool.borrowedBy}
+                          </span>
+                          <span className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                            <Clock size={12} /> Due: {tool.dueDate}
+                          </span>
                         </div>
-                        <div className="flex items-center gap-2 text-xs text-blue-600">
-                          <Clock size={12} />
-                          Due: {tool.dueDate}
+                      ) : (
+                        <span className="text-sm text-slate-600">{tool.location}</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-slate-900">฿{depreciation.currentValue.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
+                        <div className="w-24 bg-slate-100 rounded-full h-1 mt-1">
+                          <div 
+                            className="bg-slate-400 h-1 rounded-full" 
+                            style={{ width: `${depreciation.depreciationProgress}%` }}
+                          ></div>
                         </div>
                       </div>
-                    )}
-
-                    {/* Location Info */}
-                    {tool.status === 'available' && (
-                      <div className="text-sm text-slate-600 mb-3 flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                        Location: <span className="font-medium">{tool.location}</span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded" title="Edit">
+                          <Edit2 size={16} />
+                        </button>
+                        <button className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded" title="Delete">
+                          <Trash2 size={16} />
+                        </button>
                       </div>
-                    )}
-                  </div>
-
-                  {/* Footer / Actions */}
-                  <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
-                    <div className="flex flex-col w-1/2 mr-4">
-                      <div className="flex justify-between text-[10px] text-slate-400 mb-1">
-                        <span>Depreciation ({tool.usefulLifeYears}y)</span>
-                        <span>{Math.round(depreciation.depreciationProgress)}%</span>
-                      </div>
-                      <div className="w-full bg-slate-100 rounded-full h-1.5">
-                        <div 
-                          className="bg-slate-400 h-1.5 rounded-full" 
-                          style={{ width: `${depreciation.depreciationProgress}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex gap-2">
-                      <button className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="History">
-                        <History size={18} />
-                      </button>
-                      <button className="px-3 py-1.5 bg-slate-800 text-white text-xs font-medium rounded-lg hover:bg-slate-700 transition-colors">
-                        Manage
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )
-        })}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   )
