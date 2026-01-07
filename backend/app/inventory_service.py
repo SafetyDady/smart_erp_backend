@@ -198,6 +198,25 @@ class InventoryService:
         
         return movements
     
+    def list_products(
+        self,
+        product_type: Optional[str] = None,
+        category: Optional[str] = None,
+        limit: int = 100,
+        offset: int = 0
+    ) -> List[Product]:
+        """List products with optional filters"""
+        query = self.db.query(Product)
+        
+        if product_type:
+            query = query.filter(Product.product_type == product_type.upper())
+        
+        if category:
+            query = query.filter(Product.category == category)
+        
+        products = query.limit(limit).offset(offset).all()
+        return products
+    
     def get_low_stock_items(self, threshold: float = LOW_STOCK_THRESHOLD) -> List[Product]:
         """Get products with balance below threshold"""
         low_stock = self.db.query(Product).join(StockBalance).filter(

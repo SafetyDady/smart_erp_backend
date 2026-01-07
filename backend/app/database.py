@@ -23,12 +23,19 @@ ALLOW_CREATE_ALL = ENVIRONMENT != "production"
 LOW_STOCK_THRESHOLD = int(os.getenv("LOW_STOCK_THRESHOLD", "10"))
 
 # Create engine with connection pooling
-engine = create_engine(
-    DATABASE_URL,
-    pool_pre_ping=True,
-    pool_recycle=300,
-    echo=ENVIRONMENT == "development"  # SQL logging in dev only
-)
+if DATABASE_URL.startswith('sqlite'):
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args={"check_same_thread": False},
+        echo=ENVIRONMENT == "development"  # SQL logging in dev only
+    )
+else:
+    engine = create_engine(
+        DATABASE_URL,
+        pool_pre_ping=True,
+        pool_recycle=300,
+        echo=ENVIRONMENT == "development"  # SQL logging in dev only
+    )
 
 # Session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

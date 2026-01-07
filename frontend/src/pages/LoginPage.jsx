@@ -6,7 +6,7 @@ import { useRole } from '../components/guards/RoleContext'
  * Connects to backend API for user authentication
  */
 export default function LoginPage({ onLoginSuccess }) {
-  const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -25,7 +25,7 @@ export default function LoginPage({ onLoginSuccess }) {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          email: username,
+          email,
           password
         })
       })
@@ -105,15 +105,15 @@ export default function LoginPage({ onLoginSuccess }) {
           <form className="space-y-6" onSubmit={handleSubmit}>
             {/* Email Field */}
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                 Email
               </label>
               <input
-                id="username"
+                id="email"
                 type="email"
                 required
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 placeholder="Enter your email"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
               />
@@ -155,8 +155,8 @@ export default function LoginPage({ onLoginSuccess }) {
           {/* Demo Credentials */}
           <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-blue-900 text-sm font-medium mb-2">Demo Credentials:</p>
-            <p className="text-blue-800 text-xs">Email: demo@example.com</p>
-            <p className="text-blue-800 text-xs">Password: demo123</p>
+            <p className="text-blue-800 text-xs">Email: admin@company.com</p>
+            <p className="text-blue-800 text-xs">Password: admin123</p>
           </div>
         </div>
       </div>
