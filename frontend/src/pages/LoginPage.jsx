@@ -135,8 +135,8 @@ export default function LoginPage({ onLoginSuccess }) {
           {/* Demo Credentials */}
           <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-blue-900 text-sm font-medium mb-2">Demo Credentials:</p>
-            <p className="text-blue-800 text-xs">Email: demo@example.com</p>
-            <p className="text-blue-800 text-xs">Password: demo123</p>
+            <p className="text-blue-800 text-xs">Email: admin@company.com</p>
+            <p className="text-blue-800 text-xs">Password: admin123</p>
           </div>
         </div>
       </div>

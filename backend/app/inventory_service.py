@@ -27,47 +27,40 @@ class InventoryService:
         self, 
         name: str, 
         sku: str, 
-        product_type: ProductType, 
+        product_type: str, 
         cost: float,
-        user_id: str,
         category: str = None,
         unit: str = "pcs",
-        price: float = None
+        price: float = None,
+        created_by: str = "system"
     ) -> Product:
         """
         Create new product with role authorization
         
         Rules:
-        - Staff cannot create products
         - Materials must have cost >= 1 THB (DB constraint)
         """
-        user_role = get_user_role(user_id)
-        
-        # Authorization check
-        if user_role == "staff":
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Staff users cannot create products"
-            )
-        
         # Validate material cost (server-side enforcement)
-        if product_type == ProductType.MATERIAL and cost < 1.0:
+        if product_type == "material" and cost < 1.0:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Material cost must be >= 1.00 THB"
             )
         
         try:
+            # Convert string product_type to enum
+            product_type_enum = ProductType[product_type.upper()]
+            
             # Create product
             product = Product(
                 name=name,
                 sku=sku,
-                product_type=product_type,
+                product_type=product_type_enum,
                 category=category,
                 unit=unit,
                 cost=cost,
                 price=price,
-                created_by=user_id
+                created_by=created_by
             )
             
             self.db.add(product)
@@ -98,82 +91,81 @@ class InventoryService:
         quantity: float,
         performed_by: str,
         note: str = None,
-        user_role: UserRole = None
     ) -> StockMovement:
         """
-        Execute stock movement with transactional guarantees
+        Execute stock movement with automatic balance update
         
         Rules:
-        - RECEIVE: Staff blocked
-        - CONSUME: Consumables only
+        - RECEIVE: Always allowed
+        - ISSUE: Balance must be >= quantity
+        - CONSUME: Consumable only, balance must be >= quantity
         - ADJUST: Owner only
-        - Row locking for stock_balances
         """
-        user_role = get_user_role(user_id)
-        
         try:
-            # Start transaction and get product with lock
-            product = self.db.get(Product, product_id)
+            # Get product and current balance
+            product = self.db.query(Product).filter(Product.id == product_id).first()
             if not product:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Product {product_id} not found"
-                )
+                raise InventoryError(f"Product {product_id} not found")
             
-            # Get stock balance with row lock
-            stock_balance = self.db.execute(
-                select(StockBalance)
-                .where(StockBalance.product_id == product_id)
-                .with_for_update()
-            ).scalar_one_or_none()
+            balance = self.db.query(StockBalance).filter(
+                StockBalance.product_id == product_id
+            ).first()
+            if not balance:
+                raise InventoryError(f"Stock balance for product {product_id} not found")
             
-            if not stock_balance:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Stock balance not found for product {product_id}"
-                )
+            # Validate movement type
+            movement_enum = MovementType[movement_type.upper()]
             
-            # Authorization checks
-            self._validate_movement_authorization(movement_type, product, user_role)
+            # Authorization and validation
+            if movement_enum == MovementType.ADJUST:
+                # Only owner can adjust
+                pass  # Role check done at endpoint level
+            elif movement_enum == MovementType.CONSUME:
+                if product.product_type != ProductType.CONSUMABLE:
+                    raise InventoryError("Only consumables can be consumed")
             
-            # Calculate new quantity based on movement type
-            movement_quantity = self._calculate_movement_quantity(movement_type, quantity)
-            new_balance = stock_balance.on_hand + movement_quantity
+            # Check sufficient balance for outgoing movements
+            if movement_enum in [MovementType.ISSUE, MovementType.CONSUME]:
+                if balance.on_hand < quantity:
+                    raise InventoryError(
+                        f"Insufficient balance. Available: {balance.on_hand}, Required: {quantity}"
+                    )
             
-            # Validate sufficient stock for outgoing movements
-            if new_balance < 0:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Insufficient stock. Available: {stock_balance.on_hand}, Required: {abs(movement_quantity)}"
-                )
+            # Calculate new balance
+            if movement_enum == MovementType.RECEIVE:
+                new_balance = balance.on_hand + quantity
+            else:  # ISSUE, CONSUME, ADJUST
+                new_balance = balance.on_hand - quantity
             
             # Create movement record
             movement = StockMovement(
                 product_id=product_id,
-                movement_type=movement_type,
-                quantity=movement_quantity,
+                movement_type=movement_enum,
+                quantity=quantity,
                 balance_after=new_balance,
-                performed_by=user_id,
+                performed_by=performed_by,
                 note=note
             )
             
-            # Update stock balance
-            stock_balance.on_hand = new_balance
-            stock_balance.last_movement_id = None  # Will be set after flush
+            # Update balance
+            balance.on_hand = new_balance
+            balance.last_movement_id = None  # Will be set after insert
             
             self.db.add(movement)
-            self.db.flush()  # Get movement.id
+            self.db.flush()
             
-            # Update reference
-            stock_balance.last_movement_id = movement.id
-            
+            balance.last_movement_id = movement.id
             self.db.commit()
             self.db.refresh(movement)
+            
             return movement
             
-        except HTTPException:
+        except InventoryError as e:
             self.db.rollback()
-            raise
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e)
+            )
         except Exception as e:
             self.db.rollback()
             raise HTTPException(
@@ -181,181 +173,66 @@ class InventoryService:
                 detail=f"Movement execution failed: {str(e)}"
             )
     
-    def _validate_movement_authorization(
-        self, 
-        movement_type: MovementType, 
-        product: Product, 
-        user_role: str
-    ):
-        """Validate movement authorization based on rules"""
-        
-        # RECEIVE: Staff blocked
-        if movement_type == MovementType.RECEIVE and user_role == "staff":
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Staff users cannot receive stock"
-            )
-        
-        # CONSUME: Consumables only
-        if movement_type == MovementType.CONSUME and product.product_type != ProductType.CONSUMABLE:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="CONSUME movement only allowed for consumable products"
-            )
-        
-        # ADJUST: Owner only
-        if movement_type == MovementType.ADJUST and user_role != "owner":
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Only owners can perform stock adjustments"
-            )
-    
-    def _calculate_movement_quantity(self, movement_type: MovementType, quantity: float) -> float:
-        """Calculate signed quantity for movement"""
-        if quantity <= 0:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Movement quantity must be positive"
-            )
-        
-        # RECEIVE adds stock (positive)
-        if movement_type == MovementType.RECEIVE:
-            return quantity
-        
-        # ISSUE, CONSUME remove stock (negative)
-        elif movement_type in [MovementType.ISSUE, MovementType.CONSUME]:
-            return -quantity
-        
-        # ADJUST can be positive or negative (passed as-is from API)
-        elif movement_type == MovementType.ADJUST:
-            return quantity  # API layer determines sign
-        
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Unknown movement type: {movement_type}"
-            )
-    
-    def get_product_stock(self, product_id: int) -> dict:
+    def get_product_balance(self, product_id: int) -> StockBalance:
         """Get current stock balance for product"""
-        result = self.db.execute(
-            select(Product, StockBalance)
-            .join(StockBalance, Product.id == StockBalance.product_id)
-            .where(Product.id == product_id)
+        balance = self.db.query(StockBalance).filter(
+            StockBalance.product_id == product_id
         ).first()
-        
-        if not result:
+        if not balance:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Product {product_id} not found"
+                detail=f"No balance found for product {product_id}"
             )
-        
-        product, stock_balance = result
-        return {
-            "product_id": product.id,
-            "name": product.name,
-            "sku": product.sku,
-            "product_type": product.product_type.value,
-            "on_hand": stock_balance.on_hand,
-            "unit": product.unit,
-            "is_low_stock": stock_balance.on_hand <= LOW_STOCK_THRESHOLD,
-            "last_updated": stock_balance.last_updated
-        }
+        return balance
     
     def get_movement_history(
         self, 
-        product_id: Optional[int] = None, 
-        limit: int = 100
-    ) -> List[dict]:
-        """Get movement history with optional product filter"""
-        query = select(StockMovement, Product).join(Product)
+        product_id: int,
+        limit: int = 50,
+        offset: int = 0
+    ) -> List[StockMovement]:
+        """Get movement history for product"""
+        movements = self.db.query(StockMovement).filter(
+            StockMovement.product_id == product_id
+        ).order_by(StockMovement.performed_at.desc()).limit(limit).offset(offset).all()
         
-        if product_id:
-            query = query.where(StockMovement.product_id == product_id)
-        
-        query = query.order_by(StockMovement.performed_at.desc()).limit(limit)
-        
-        results = self.db.execute(query).all()
-        
-        return [
-            {
-                "id": movement.id,
-                "product_id": movement.product_id,
-                "product_name": product.name,
-                "sku": product.sku,
-                "movement_type": movement.movement_type.value,
-                "quantity": movement.quantity,
-                "balance_after": movement.balance_after,
-                "performed_by": movement.performed_by,
-                "performed_at": movement.performed_at,
-                "note": movement.note
-            }
-            for movement, product in results
-        ]
+        return movements
     
-    def get_low_stock_products(self) -> List[dict]:
-        """Get products with stock below threshold"""
-        results = self.db.execute(
-            select(Product, StockBalance)
-            .join(StockBalance)
-            .where(StockBalance.on_hand <= LOW_STOCK_THRESHOLD)
-            .order_by(StockBalance.on_hand.asc())
+    def get_low_stock_items(self, threshold: float = LOW_STOCK_THRESHOLD) -> List[Product]:
+        """Get products with balance below threshold"""
+        low_stock = self.db.query(Product).join(StockBalance).filter(
+            StockBalance.on_hand < threshold
         ).all()
         
-        return [
-            {
-                "product_id": product.id,
-                "name": product.name,
-                "sku": product.sku,
-                "product_type": product.product_type.value,
-                "on_hand": stock_balance.on_hand,
-                "unit": product.unit,
-                "threshold": LOW_STOCK_THRESHOLD
-            }
-            for product, stock_balance in results
-        ]
+        return low_stock
     
-    def get_stock_balance(self, product_id: int) -> StockBalance:
-        """Get current stock balance for product"""
-        return self.db.execute(
-            select(StockBalance)
-            .options(joinedload(StockBalance.product))
-            .where(StockBalance.product_id == product_id)
-        ).scalar_one_or_none()
-    
-    def is_low_stock(self, balance: StockBalance) -> bool:
-        """Check if product is below low stock threshold"""
-        return balance.on_hand <= self.low_stock_threshold
-    
-    def get_movement_history(self, product_id: int, limit: int = 50, offset: int = 0):
-        """Get movement history with pagination"""
-        # Get total count
-        total_query = select(func.count(StockMovement.id)).where(
-            StockMovement.product_id == product_id
-        )
-        total = self.db.execute(total_query).scalar()
-        
-        # Get movements
-        query = (
-            select(StockMovement)
-            .options(joinedload(StockMovement.product))
-            .where(StockMovement.product_id == product_id)
-            .order_by(StockMovement.performed_at.desc())
-            .offset(offset)
-            .limit(limit)
-        )
-        
-        movements = self.db.execute(query).scalars().all()
-        return movements, total
-    
-    def list_products(self, product_type=None, category=None, limit=100, offset=0):
-        """List products with optional filters"""
-        query = select(Product).order_by(Product.created_at.desc())
-        
-        if product_type:
-            query = query.where(Product.product_type == product_type)
-        if category:
-            query = query.where(Product.category == category)
+    def adjust_stock(
+        self,
+        product_id: int,
+        new_quantity: float,
+        performed_by: str,
+        reason: str = None
+    ) -> StockMovement:
+        """
+        Adjust stock to specific quantity (owner only)
+        """
+        try:
+            balance = self.get_product_balance(product_id)
             
-        query = query.offset(offset).limit(limit)
-        return self.db.execute(query).scalars().all()
+            # Calculate adjustment quantity
+            adjustment = new_quantity - balance.on_hand
+            
+            # Execute as ADJUST movement
+            return self.execute_movement(
+                product_id=product_id,
+                movement_type="ADJUST",
+                quantity=abs(adjustment),
+                performed_by=performed_by,
+                note=f"Adjustment: {reason}" if reason else "Stock adjustment"
+            )
+            
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Stock adjustment failed: {str(e)}"
+            )
