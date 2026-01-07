@@ -3,6 +3,7 @@ import { RoleProvider, useRole } from './components/guards/RoleContext'
 import AppLayout from './components/layout/AppLayout'
 import DashboardPage from './pages/DashboardPage'
 import ProductsPage from './pages/ProductsPage'
+import OrdersPage from './pages/OrdersPage'
 
 /**
  * App - Root application component
@@ -47,7 +48,7 @@ function AppContent() {
       case 'products':
         return <ProductsPage />
       case 'orders':
-        return <div className="p-8 text-center text-slate-500">Orders Module (Coming Soon)</div>
+        return <OrdersPage />
       case 'customers':
         return <div className="p-8 text-center text-slate-500">Customers Module (Coming Soon)</div>
       default:
