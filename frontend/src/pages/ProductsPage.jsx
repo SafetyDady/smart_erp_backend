@@ -10,6 +10,7 @@ const MOCK_PRODUCTS = [
     id: 1,
     name: 'Ergonomic Office Chair',
     sku: 'FUR-CHR-001',
+    type: 'product',
     category: 'Furniture',
     image: 'https://images.unsplash.com/photo-1505843490538-5133c6c7d0e1?w=100&q=80',
     stockLevel: 45,
@@ -26,6 +27,7 @@ const MOCK_PRODUCTS = [
     id: 2,
     name: 'Wireless Mechanical Keyboard',
     sku: 'ELE-KEY-002',
+    type: 'product',
     category: 'Electronics',
     image: 'https://images.unsplash.com/photo-1587829741301-dc798b91add1?w=100&q=80',
     stockLevel: 8,
@@ -40,51 +42,71 @@ const MOCK_PRODUCTS = [
   },
   {
     id: 3,
-    name: 'Standing Desk Converter',
-    sku: 'FUR-DSK-003',
-    category: 'Furniture',
-    image: 'https://images.unsplash.com/photo-1595515106969-1ce29566ff1c?w=100&q=80',
-    stockLevel: 12,
-    minStockLevel: 5,
+    name: 'Oak Wood Plank (2m)',
+    sku: 'MAT-WD-001',
+    type: 'material',
+    category: 'Raw Material',
+    image: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=100&q=80',
+    stockLevel: 150,
+    minStockLevel: 50,
     unit: 'pcs',
-    price: 350.00,
-    cost: 180.00,
-    margin: 48.5,
+    price: 0, // Not for sale
+    cost: 45.00,
+    margin: 0,
     status: 'active',
-    location: 'Warehouse A-15',
-    supplier: 'Office Comfort Co.'
+    location: 'Warehouse C-01',
+    supplier: 'Wood Works Co.'
   },
   {
     id: 4,
-    name: 'USB-C Docking Station',
-    sku: 'ELE-ACC-004',
-    category: 'Electronics',
-    image: 'https://images.unsplash.com/photo-1572569028738-411a197b83cd?w=100&q=80',
-    stockLevel: 0,
-    minStockLevel: 10,
-    unit: 'pcs',
-    price: 89.99,
-    cost: 45.00,
-    margin: 50,
-    status: 'out_of_stock',
-    location: 'Warehouse B-02',
-    supplier: 'TechGear Ltd.'
+    name: 'Steel Frame Tube',
+    sku: 'MAT-STL-002',
+    type: 'material',
+    category: 'Raw Material',
+    image: 'https://images.unsplash.com/photo-1535063406552-4404398e58a0?w=100&q=80',
+    stockLevel: 300,
+    minStockLevel: 100,
+    unit: 'm',
+    price: 0,
+    cost: 15.50,
+    margin: 0,
+    status: 'active',
+    location: 'Warehouse C-02',
+    supplier: 'Metal Supply Inc.'
   },
   {
     id: 5,
-    name: 'Noise Cancelling Headphones',
-    sku: 'ELE-AUD-005',
-    category: 'Electronics',
-    image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=100&q=80',
-    stockLevel: 25,
-    minStockLevel: 10,
-    unit: 'pcs',
-    price: 299.00,
-    cost: 150.00,
-    margin: 49.8,
+    name: 'Drill Bit Set (Titanium)',
+    sku: 'CON-TLS-001',
+    type: 'consumable',
+    category: 'Tools',
+    image: 'https://images.unsplash.com/photo-1572981779307-38b8cabb2407?w=100&q=80',
+    stockLevel: 12,
+    minStockLevel: 5,
+    unit: 'set',
+    price: 0,
+    cost: 85.00,
+    margin: 0,
     status: 'active',
-    location: 'Warehouse B-08',
-    supplier: 'AudioPro Inc.'
+    location: 'Tool Room A',
+    supplier: 'Tool Master'
+  },
+  {
+    id: 6,
+    name: 'Safety Gloves (L)',
+    sku: 'CON-SAF-002',
+    type: 'consumable',
+    category: 'Safety Gear',
+    image: 'https://images.unsplash.com/photo-1615486511484-92e172cc416d?w=100&q=80',
+    stockLevel: 50,
+    minStockLevel: 20,
+    unit: 'pair',
+    price: 0,
+    cost: 2.50,
+    margin: 0,
+    status: 'active',
+    location: 'Tool Room B',
+    supplier: 'Safety First'
   }
 ]
 
@@ -93,6 +115,7 @@ const ProductsPage = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [products, setProducts] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
+  const [typeFilter, setTypeFilter] = useState('all') // all, product, material, consumable
 
   useEffect(() => {
     const loadData = async () => {
@@ -100,7 +123,11 @@ const ProductsPage = () => {
       try {
         await new Promise(resolve => setTimeout(resolve, 600))
         const shapedData = shapeProductsByRole(MOCK_PRODUCTS, userRole)
-        setProducts(shapedData)
+        // Filter by type if not 'all'
+        const filteredData = typeFilter === 'all' 
+          ? shapedData 
+          : shapedData.filter(p => p.type === typeFilter)
+        setProducts(filteredData)
       } catch (error) {
         console.error("Failed to load products", error)
       } finally {
@@ -108,7 +135,7 @@ const ProductsPage = () => {
       }
     }
     loadData()
-  }, [userRole])
+  }, [userRole, typeFilter])
 
   if (isLoading) {
     return (
@@ -145,10 +172,34 @@ const ProductsPage = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <button className="btn btn-secondary flex items-center gap-2">
-          <Filter size={18} />
-          Filters
-        </button>
+        
+        {/* Type Filter Tabs */}
+        <div className="flex bg-slate-100 p-1 rounded-lg">
+          <button 
+            onClick={() => setTypeFilter('all')}
+            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${typeFilter === 'all' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            All
+          </button>
+          <button 
+            onClick={() => setTypeFilter('product')}
+            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${typeFilter === 'product' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            Products
+          </button>
+          <button 
+            onClick={() => setTypeFilter('material')}
+            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${typeFilter === 'material' ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            Materials
+          </button>
+          <button 
+            onClick={() => setTypeFilter('consumable')}
+            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${typeFilter === 'consumable' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            Consumables
+          </button>
+        </div>
       </div>
 
       {/* Table */}
@@ -161,7 +212,10 @@ const ProductsPage = () => {
                   Image
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                  Product Info
+                  Item Info
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Type
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
                   Category
@@ -194,6 +248,23 @@ const ProductsPage = () => {
                   <td className="px-6 py-4">
                     <div className="text-sm font-medium text-slate-900">{product.name}</div>
                     <div className="text-xs text-slate-500 font-mono mt-0.5">{product.sku}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {product.type === 'product' && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                        Product
+                      </span>
+                    )}
+                    {product.type === 'material' && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 border border-amber-100">
+                        Material
+                      </span>
+                    )}
+                    {product.type === 'consumable' && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-50 text-purple-700 border border-purple-100">
+                        Consumable
+                      </span>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">

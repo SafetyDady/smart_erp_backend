@@ -9,7 +9,8 @@ import {
   X,
   ChevronLeft,
   Menu,
-  LogOut
+  LogOut,
+  ClipboardList
 } from 'lucide-react'
 import RoleGuard from '../guards/RoleGuard'
 
@@ -56,6 +57,13 @@ const Sidebar = ({
       name: 'Orders',
       icon: ShoppingCart,
       href: '/orders', 
+      roles: ['owner', 'manager', 'staff']
+    },
+    {
+      id: 'work-orders',
+      name: 'Work Orders',
+      icon: ClipboardList,
+      href: '/work-orders',
       roles: ['owner', 'manager', 'staff']
     },
     {

@@ -4,6 +4,7 @@ import AppLayout from './components/layout/AppLayout'
 import DashboardPage from './pages/DashboardPage'
 import ProductsPage from './pages/ProductsPage'
 import OrdersPage from './pages/OrdersPage'
+import WorkOrdersPage from './pages/WorkOrdersPage'
 import CustomersPage from './pages/CustomersPage'
 import FinancialPage from './pages/FinancialPage'
 import HRPage from './pages/HRPage'
@@ -52,6 +53,8 @@ function AppContent() {
         return <ProductsPage />
       case 'orders':
         return <OrdersPage />
+      case 'work-orders':
+        return <WorkOrdersPage />
       case 'customers':
         return <CustomersPage />
       case 'financial':
