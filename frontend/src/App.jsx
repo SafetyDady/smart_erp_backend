@@ -1,6 +1,8 @@
 import React from 'react'
 import { RoleProvider, useRole } from './components/guards/RoleContext'
+import { AuthProvider, useAuth } from './components/guards/AuthContext'
 import AppLayout from './components/layout/AppLayout'
+import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import ProductsPage from './pages/ProductsPage'
 import OrdersPage from './pages/OrdersPage'
@@ -13,27 +15,39 @@ import HRPage from './pages/HRPage'
 
 /**
  * App - Root application component
- * Provides role context and main application layout
+ * Provides auth and role context
  */
 function App() {
   return (
-    <RoleProvider>
-      <AppContent />
-    </RoleProvider>
+    <AuthProvider>
+      <RoleProvider>
+        <AppContent />
+      </RoleProvider>
+    </AuthProvider>
   )
 }
 
 /**
- * AppContent - Inner app component with role context access
+ * AppContent - Inner app component with auth and role context access
  */
 function AppContent() {
-  const { userRole } = useRole()
+  const { isAuthenticated, user, logout } = useAuth()
+  const { userRole, setUserRole } = useRole()
   const [currentPage, setCurrentPage] = React.useState('dashboard')
-  const [userName] = React.useState('John Doe')
   const [notifications] = React.useState([
     { id: 1, message: 'New order received' },
     { id: 2, message: 'Weekly report ready' }
   ])
+
+  // Show login page if not authenticated
+  if (!isAuthenticated) {
+    return <LoginPage onLoginSuccess={() => {
+      // Update role from user data if available
+      if (user?.role) {
+        setUserRole(user.role)
+      }
+    }} />
+  }
 
   // Simple state-based routing
   const handleNavigate = (pageId) => {
@@ -43,7 +57,11 @@ function AppContent() {
 
   const handleRoleChange = (newRole) => {
     console.log(`App: Role changed to ${newRole}`)
-    // Additional role change handling if needed
+    setUserRole(newRole)
+  }
+
+  const handleLogout = () => {
+    logout()
   }
 
   // Render current page content
@@ -76,10 +94,11 @@ function AppContent() {
     <AppLayout
       userRole={userRole}
       currentPage={currentPage}
-      userName={userName}
+      userName={user?.name || 'User'}
       notifications={notifications}
       onNavigate={handleNavigate}
       onRoleChange={handleRoleChange}
+      onLogout={handleLogout}
     >
       {renderContent()}
     </AppLayout>
