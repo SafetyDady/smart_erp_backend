@@ -2,7 +2,14 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title="Smart ERP Backend", version="1.0.0")
+from .api.inventory import router as inventory_router
+from .database import Base, engine
+
+app = FastAPI(
+    title="Smart ERP Backend", 
+    version="1.0.0",
+    description="Phase 13B: Inventory Management System"
+)
 
 # 🔒 Production-safe CORS
 allowed_origins = [
@@ -25,14 +32,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Include routers
+app.include_router(inventory_router)
+
 @app.get("/")
 def root():
     return {
-        "message": "Smart ERP Backend API",
+        "message": "Smart ERP Backend API - Phase 13B",
         "status": "online",
-        "environment": os.getenv("RAILWAY_ENVIRONMENT", "development")
+        "environment": os.getenv("RAILWAY_ENVIRONMENT", "development"),
+        "features": ["inventory_management", "role_based_auth", "transactional_movements"]
     }
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return {"status": "ok", "phase": "13B"}
+
+# Lifecycle event to create tables
+@app.on_event("startup")
+async def startup():
+    """Create database tables on startup"""
+    if os.getenv("ENVIRONMENT") != "production":
+        Base.metadata.create_all(bind=engine)
