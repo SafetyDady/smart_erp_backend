@@ -6,6 +6,7 @@ import ProductsPage from './pages/ProductsPage'
 import OrdersPage from './pages/OrdersPage'
 import CustomersPage from './pages/CustomersPage'
 import FinancialPage from './pages/FinancialPage'
+import HRPage from './pages/HRPage'
 
 /**
  * App - Root application component
@@ -55,6 +56,8 @@ function AppContent() {
         return <CustomersPage />
       case 'financial':
         return <FinancialPage />
+      case 'hr':
+        return <HRPage />
       default:
         return <DashboardPage />
     }
