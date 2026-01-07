@@ -12,7 +12,7 @@ from .models import Base, UserRole
 # Environment variables with defaults
 DATABASE_URL = os.getenv(
     "DATABASE_URL", 
-    "postgresql://user:password@localhost:5432/smart_erp"  # PostgreSQL for Railway production
+    "sqlite:///./smart_erp.db"  # SQLite for development, PostgreSQL for production
 )
 
 # Production safety: disable create_all in production

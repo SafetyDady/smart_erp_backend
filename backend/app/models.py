@@ -3,7 +3,7 @@ Phase 13B: Inventory Core Engine Models
 Database schema for transactional stock management
 """
 
-from sqlalchemy import Column, String, Integer, Float, DateTime, Enum, Text, ForeignKey, Index, CheckConstraint
+from sqlalchemy import Column, String, Integer, Float, DateTime, Enum, Text, ForeignKey, Index, CheckConstraint, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -32,6 +32,28 @@ class UserRole(enum.Enum):
     OWNER = "owner"
     MANAGER = "manager"
     STAFF = "staff"
+
+
+class User(Base):
+    """User model for authentication and authorization"""
+    __tablename__ = "users"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    full_name = Column(String(255), nullable=False)
+    hashed_password = Column(String(255), nullable=False)
+    role = Column(Enum(UserRole), nullable=False, default=UserRole.STAFF)
+    is_active = Column(Boolean, default=True, nullable=False)
+    
+    # Metadata
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    last_login = Column(DateTime(timezone=True), nullable=True)
+    
+    # Constraints
+    __table_args__ = (
+        Index("idx_users_email", "email"),
+        Index("idx_users_role", "role"),
+    )
 
 
 class Product(Base):

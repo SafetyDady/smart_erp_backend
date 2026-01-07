@@ -2,7 +2,7 @@
  * API Configuration for Smart ERP
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001'
 
 export const apiConfig = {
   baseUrl: API_BASE_URL,
@@ -15,7 +15,11 @@ export const apiConfig = {
     charts: '/api/dashboard/charts', 
     transactions: '/api/dashboard/transactions',
     // Future API endpoints
-    inventory: '/api/inventory',
+    inventory: '/inventory',
+    inventoryProducts: '/inventory/products',
+    inventoryMovements: '/inventory/movements', 
+    inventoryAdjustments: '/inventory/adjustments',
+    inventoryLowStock: '/inventory/low-stock',
     sales: '/api/sales',
     purchasing: '/api/purchasing',
     accounting: '/api/accounting',

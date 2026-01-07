@@ -3,7 +3,7 @@ Phase 13B: API Schemas
 Pydantic models for request/response validation
 """
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, EmailStr
 from typing import Optional, List
 from datetime import datetime
 from enum import Enum
@@ -140,3 +140,50 @@ class LowStockResponse(BaseModel):
     low_stock_products: List[LowStockItem]
     threshold: int
     total_count: int
+
+
+# Authentication Schemas
+class UserRoleSchema(str, Enum):
+    """User role for API"""
+    OWNER = "owner"
+    MANAGER = "manager"
+    STAFF = "staff"
+
+
+class UserLogin(BaseModel):
+    """User login request"""
+    email: EmailStr
+    password: str
+
+
+class UserResponse(BaseModel):
+    """User response"""
+    id: int
+    email: str
+    full_name: str
+    role: UserRoleSchema
+    is_active: bool
+    created_at: datetime
+    last_login: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+class Token(BaseModel):
+    """Token response"""
+    access_token: str
+    token_type: str
+
+
+class TokenData(BaseModel):
+    """Token data"""
+    email: Optional[str] = None
+
+
+class UserCreate(BaseModel):
+    """Create user request"""
+    email: EmailStr
+    full_name: str
+    password: str
+    role: UserRoleSchema = UserRoleSchema.STAFF

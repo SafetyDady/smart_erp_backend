@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .api.inventory import router as inventory_router
+from .api.auth import router as auth_router
 from .database import Base, engine
 
 app = FastAPI(
@@ -15,6 +16,7 @@ app = FastAPI(
 allowed_origins = [
     "http://localhost:3000",  # Local dev (Next.js)
     "http://localhost:5173",  # Local dev (Vite)
+    "http://localhost:5174",  # Local dev (Vite alternative port)
     "https://*.vercel.app",   # Vercel deployments
     # Add your specific Vercel domain here:
     # "https://your-frontend.vercel.app",
@@ -34,6 +36,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(inventory_router)
+app.include_router(auth_router)
 
 @app.get("/")
 def root():
