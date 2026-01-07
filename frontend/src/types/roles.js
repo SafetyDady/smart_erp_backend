@@ -34,7 +34,9 @@ export const ROLE_PERMISSIONS = {
     // Module Access
     canAccessAccounting: true,
     canAccessHR: true,
-    canAccessSettings: true
+    canAccessSettings: true,
+    // Financial Module Specific
+    canViewFinancials: true // ✅ Added for Financial Page Access
   },
   [ROLES.MANAGER]: {
     // KPI Access - Limited financial context
@@ -51,7 +53,9 @@ export const ROLE_PERMISSIONS = {
     // Module Access
     canAccessAccounting: false,
     canAccessHR: true,              // Staff management
-    canAccessSettings: true         // Operational settings only
+    canAccessSettings: true,         // Operational settings only
+    // Financial Module Specific
+    canViewFinancials: false // ❌ Restricted
   },
   [ROLES.STAFF]: {
     // KPI Access - Minimal, task-focused only
@@ -68,7 +72,9 @@ export const ROLE_PERMISSIONS = {
     // Module Access
     canAccessAccounting: false,
     canAccessHR: false,
-    canAccessSettings: false        // No settings access
+    canAccessSettings: false,        // No settings access
+    // Financial Module Specific
+    canViewFinancials: false // ❌ Restricted
   }
 }
 
