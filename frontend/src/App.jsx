@@ -6,6 +6,7 @@ import ProductsPage from './pages/ProductsPage'
 import OrdersPage from './pages/OrdersPage'
 import WorkOrdersPage from './pages/WorkOrdersPage'
 import ToolsPage from './pages/ToolsPage'
+import PurchasingPage from './pages/PurchasingPage'
 import CustomersPage from './pages/CustomersPage'
 import FinancialPage from './pages/FinancialPage'
 import HRPage from './pages/HRPage'
@@ -58,6 +59,8 @@ function AppContent() {
         return <WorkOrdersPage />
       case 'tools':
         return <ToolsPage />
+      case 'purchasing':
+        return <PurchasingPage />
       case 'customers':
         return <CustomersPage />
       case 'financial':

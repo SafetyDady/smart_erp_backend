@@ -11,7 +11,8 @@ import {
   Menu,
   LogOut,
   ClipboardList,
-  Wrench
+  Wrench,
+  Truck
 } from 'lucide-react'
 import RoleGuard from '../guards/RoleGuard'
 
@@ -73,6 +74,13 @@ const Sidebar = ({
       icon: Wrench,
       href: '/tools',
       roles: ['owner', 'manager', 'staff']
+    },
+    {
+      id: 'purchasing',
+      name: 'Purchasing',
+      icon: Truck,
+      href: '/purchasing',
+      roles: ['owner', 'manager']
     },
     {
       id: 'financial',
