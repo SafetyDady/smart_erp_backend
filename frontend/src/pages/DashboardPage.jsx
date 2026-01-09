@@ -5,7 +5,7 @@ import KPISection from '../components/dashboard/KPISection'
 import ChartsSection from '../components/dashboard/ChartsSection'
 import TransactionSection from '../components/dashboard/TransactionSection'
 import LowStockWidget from '../components/dashboard/LowStockWidget'
-import { useRole } from '../components/guards/RoleContext'
+import { useAuth } from '../components/guards/AuthContext'
 import { shapeKpisByRole } from '../services/dashboard/shapeKpisByRole'
 import { shapeChartsByRole } from '../services/dashboard/shapeChartsByRole'
 import { shapeTransactionsByRole } from '../services/dashboard/shapeTransactionsByRole'
@@ -87,7 +87,8 @@ const MOCK_USER_ID = 'user123'
  * Uses role context for data filtering
  */
 const DashboardPage = () => {
-  const { userRole } = useRole()
+  const { user } = useAuth()
+  const userRole = user?.role || 'staff'
   const [isLoading, setIsLoading] = React.useState(true)
   const [dashboardData, setDashboardData] = React.useState({ kpi: {}, charts: {}, transactions: [] })
 

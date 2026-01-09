@@ -1,5 +1,3 @@
-import { ROLES, hasPermission } from '../../types/roles.js'
-
 /**
  * Shape customers data based on user role - DATA SECURITY LAYER
  * Filters customer fields to protect sensitive information
@@ -31,7 +29,7 @@ export const shapeCustomersByRole = (rawCustomers, userRole) => {
     }
 
     // Role-specific fields
-    if (userRole === ROLES.OWNER) {
+    if (userRole === 'owner') {
       // Owner sees financial metrics
       return {
         ...shapedCustomer,
@@ -43,7 +41,7 @@ export const shapeCustomersByRole = (rawCustomers, userRole) => {
       }
     }
 
-    if (userRole === ROLES.MANAGER) {
+    if (userRole === 'manager') {
       // Manager sees spending but NO profit/credit limit
       return {
         ...shapedCustomer,

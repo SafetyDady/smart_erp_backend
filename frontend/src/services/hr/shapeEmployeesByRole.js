@@ -1,5 +1,3 @@
-import { ROLES, hasPermission } from '../../types/roles.js'
-
 /**
  * Shape employee data based on user role - DATA SECURITY LAYER
  * Filters sensitive HR information (Salary, Personal Details)
@@ -32,7 +30,7 @@ export const shapeEmployeesByRole = (rawEmployees, userRole) => {
     }
 
     // Role-specific fields
-    if (userRole === ROLES.OWNER) {
+    if (userRole === 'owner') {
       // Owner sees EVERYTHING including Salary and Performance Rating
       return {
         ...shapedEmployee,
@@ -43,7 +41,7 @@ export const shapeEmployeesByRole = (rawEmployees, userRole) => {
       }
     }
 
-    if (userRole === ROLES.MANAGER) {
+    if (userRole === 'manager') {
       // Manager sees performance but NO salary/bank info
       return {
         ...shapedEmployee,

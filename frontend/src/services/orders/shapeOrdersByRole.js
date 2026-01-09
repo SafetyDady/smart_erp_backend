@@ -1,5 +1,3 @@
-import { ROLES } from '../../types/roles.js'
-
 /**
  * Shape orders data based on user role - DATA SECURITY LAYER
  * Filters order fields and rows to protect sensitive financial information
@@ -16,7 +14,7 @@ export const shapeOrdersByRole = (rawOrders, userRole, userId = 'user123') => {
   // 1. Row Filtering (Which orders can they see?)
   let visibleOrders = rawOrders
 
-  if (userRole === ROLES.STAFF) {
+  if (userRole === 'staff') {
     // Staff sees only assigned orders
     visibleOrders = rawOrders.filter(order => 
       order.assignedTo === userId || order.assignedTo === 'team'
@@ -39,7 +37,7 @@ export const shapeOrdersByRole = (rawOrders, userRole, userId = 'user123') => {
     }
 
     // Role-specific fields
-    if (userRole === ROLES.OWNER) {
+    if (userRole === 'owner') {
       // Owner sees everything including profit margins
       return {
         ...shapedOrder,
@@ -52,7 +50,7 @@ export const shapeOrdersByRole = (rawOrders, userRole, userId = 'user123') => {
       }
     }
 
-    if (userRole === ROLES.MANAGER) {
+    if (userRole === 'manager') {
       // Manager sees amounts but NO profit/cost
       return {
         ...shapedOrder,
@@ -63,7 +61,7 @@ export const shapeOrdersByRole = (rawOrders, userRole, userId = 'user123') => {
       }
     }
 
-    if (userRole === ROLES.STAFF) {
+    if (userRole === 'staff') {
       // Staff sees operational details only (NO amounts)
       return {
         ...shapedOrder,

@@ -14,7 +14,7 @@ import {
   Edit2,
   Trash2
 } from 'lucide-react'
-import { useRole } from '../components/guards/RoleContext'
+import { useAuth } from '../components/guards/AuthContext'
 
 // Mock Data for Tools & Assets
 const MOCK_TOOLS = [
@@ -98,7 +98,8 @@ const calculateDepreciation = (price, purchaseDate, usefulLifeYears) => {
 }
 
 const ToolsPage = () => {
-  const { userRole } = useRole()
+  const { user } = useAuth()
+  const userRole = user?.role || 'staff'
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [categoryFilter, setCategoryFilter] = useState('all')

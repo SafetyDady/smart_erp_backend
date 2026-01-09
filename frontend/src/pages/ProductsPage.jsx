@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import { Plus, Search, Filter, MoreHorizontal, Edit2, Trash2, AlertCircle, Package, X } from 'lucide-react'
-import { useRole } from '../components/guards/RoleContext'
+import { useAuth } from '../components/guards/AuthContext'
 import { shapeProductsByRole } from '../services/inventory/shapeProductsByRole'
 import { fetchProducts, transformProductData, createProduct } from '../services/inventory/productsApi'
 import LoadingState from '../components/common/LoadingState'
 
 const ProductsPage = () => {
-  const { userRole } = useRole()
+  const { user } = useAuth()
+  const userRole = user?.role || 'staff'
   const [isLoading, setIsLoading] = useState(true)
   const [products, setProducts] = useState([])
   const [searchTerm, setSearchTerm] = useState('')

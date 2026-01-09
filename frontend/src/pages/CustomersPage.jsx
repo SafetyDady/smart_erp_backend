@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Plus, Search, Filter, MoreHorizontal, Mail, Phone, Building, User } from 'lucide-react'
-import { useRole } from '../components/guards/RoleContext'
+import { useAuth } from '../components/guards/AuthContext'
 import { shapeCustomersByRole } from '../services/customers/shapeCustomersByRole'
 import LoadingState from '../components/common/LoadingState'
 
@@ -84,7 +84,8 @@ const MOCK_CUSTOMERS = [
 ]
 
 const CustomersPage = () => {
-  const { userRole } = useRole()
+  const { user } = useAuth()
+  const userRole = user?.role || 'staff'
   const [isLoading, setIsLoading] = useState(true)
   const [customers, setCustomers] = useState([])
   const [searchTerm, setSearchTerm] = useState('')

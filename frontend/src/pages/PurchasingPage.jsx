@@ -13,7 +13,7 @@ import {
   ChevronRight,
   DollarSign
 } from 'lucide-react'
-import { useRole } from '../components/guards/RoleContext'
+import { useAuth } from '../components/guards/AuthContext'
 
 // Mock Data for Purchase Orders
 const MOCK_PURCHASE_ORDERS = [
@@ -68,7 +68,8 @@ const MOCK_PURCHASE_ORDERS = [
 ]
 
 const PurchasingPage = () => {
-  const { userRole } = useRole()
+  const { user } = useAuth()
+  const userRole = user?.role || 'staff'
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
 

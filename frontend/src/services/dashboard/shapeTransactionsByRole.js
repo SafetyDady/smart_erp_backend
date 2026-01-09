@@ -1,5 +1,3 @@
-import { ROLES, hasPermission } from '../../types/roles.js'
-
 /**
  * Shape transactions data based on user role - DATA SECURITY LAYER
  * Filters transactions and removes sensitive financial/personal information
@@ -13,7 +11,7 @@ export const shapeTransactionsByRole = (rawTransactions, userRole, userId = null
     return []
   }
   
-  if (userRole === ROLES.OWNER) {
+  if (userRole === 'owner') {
     // Owner sees ALL transactions with FULL details
     return rawTransactions.map(transaction => ({
       id: transaction.id,
@@ -34,7 +32,7 @@ export const shapeTransactionsByRole = (rawTransactions, userRole, userId = null
     }))
   }
   
-  if (userRole === ROLES.MANAGER) {
+  if (userRole === 'manager') {
     // Manager sees operational transactions with LIMITED financial details
     return rawTransactions
       .filter(transaction => {
@@ -60,7 +58,7 @@ export const shapeTransactionsByRole = (rawTransactions, userRole, userId = null
       }))
   }
   
-  if (userRole === ROLES.STAFF) {
+  if (userRole === 'staff') {
     // Staff sees ONLY assigned transactions with MINIMAL data
     return rawTransactions
       .filter(transaction => {

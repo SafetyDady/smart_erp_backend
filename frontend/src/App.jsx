@@ -1,5 +1,4 @@
 import React from 'react'
-import { RoleProvider, useRole } from './components/guards/RoleContext'
 import { AuthProvider, useAuth } from './components/guards/AuthContext'
 import AppLayout from './components/layout/AppLayout'
 import LoginPage from './pages/LoginPage'
@@ -21,9 +20,7 @@ import StockMovementPage from './pages/StockMovementPage'
 function App() {
   return (
     <AuthProvider>
-      <RoleProvider>
-        <AppContent />
-      </RoleProvider>
+      <AppContent />
     </AuthProvider>
   )
 }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { DollarSign, TrendingUp, TrendingDown, PieChart, Activity, Lock } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts'
-import { useRole } from '../components/guards/RoleContext'
+import { useAuth } from '../components/guards/AuthContext'
 import { shapeFinancialsByRole } from '../services/financial/shapeFinancialsByRole'
 import LoadingState from '../components/common/LoadingState'
 
@@ -38,7 +38,8 @@ const MOCK_FINANCIALS = {
 }
 
 const FinancialPage = () => {
-  const { userRole } = useRole()
+  const { user } = useAuth()
+  const userRole = user?.role || 'staff'
   const [isLoading, setIsLoading] = useState(true)
   const [financials, setFinancials] = useState(null)
 

@@ -1,5 +1,4 @@
 import React, { useState } from 'react'
-import { useRole } from '../components/guards/RoleContext'
 import { useAuth } from '../components/guards/AuthContext'
 
 /**
@@ -11,7 +10,6 @@ export default function LoginPage({ onLoginSuccess }) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const { setUserRole } = useRole()
   const { login } = useAuth()
 
   const handleSubmit = async (e) => {
@@ -20,37 +18,8 @@ export default function LoginPage({ onLoginSuccess }) {
     setError('')
 
     try {
-      // Use AuthContext login function
-      const data = await login(email, password)
-      console.log('Login successful, token received:', !!data.access_token)
-      
-      // Fetch user info and set role
-      const userResponse = await fetch('http://localhost:8001/api/auth/me', {
-        headers: {
-          'Authorization': `Bearer ${data.access_token}`
-        }
-      })
-
-      console.log('User info request status:', userResponse.status)
-
-      if (userResponse.ok) {
-        const contentType = userResponse.headers.get('content-type')
-        console.log('Response content-type:', contentType)
-        
-        if (contentType && contentType.includes('application/json')) {
-          const userData = await userResponse.json()
-          console.log('User data received:', userData)
-          setUserRole(userData.role || 'staff')
-        } else {
-          console.error('Expected JSON response but got:', contentType)
-          const textResponse = await userResponse.text()
-          console.error('Response body:', textResponse)
-          setUserRole('staff') // Default role
-        }
-      } else {
-        console.error('Failed to fetch user info:', userResponse.status)
-        setUserRole('staff') // Default role
-      }
+      // Use AuthContext login function - it handles token storage and user info
+      await login(email, password)
 
       // Call success callback
       if (onLoginSuccess) {

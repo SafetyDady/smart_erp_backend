@@ -1,6 +1,5 @@
 import React from 'react'
-import { useRole } from './RoleContext'
-import { hasPermission } from '../../types/roles'
+import { useAuth } from './AuthContext'
 
 /**
  * RoleGuard - Component-level access control
@@ -14,10 +13,10 @@ const RoleGuard = ({
   children, 
   fallback = null 
 }) => {
-  const { userRole: contextRole } = useRole()
+  const { user } = useAuth()
   
-  // Use provided userRole or fall back to context
-  const effectiveRole = userRole || contextRole
+  // Use provided userRole or fall back to auth context
+  const effectiveRole = userRole || user?.role || 'staff'
 
   // If no restrictions, show content
   if (allowedRoles.length === 0 && requiredPermissions.length === 0) {
@@ -30,18 +29,8 @@ const RoleGuard = ({
     hasRoleAccess = allowedRoles.includes(effectiveRole)
   }
 
-  // Check permission-based access  
-  let hasPermissionAccess = true
-  if (requiredPermissions.length > 0) {
-    // Check if role has ANY of the required permissions (OR logic)
-    // Change to .every() if you want AND logic
-    hasPermissionAccess = requiredPermissions.some(permission => 
-      hasPermission(effectiveRole, permission)
-    )
-  }
-
-  // Both checks must pass
-  const hasAccess = hasRoleAccess && hasPermissionAccess
+  // Simple role-based access
+  const hasAccess = hasRoleAccess
 
   if (!hasAccess) {
     return fallback

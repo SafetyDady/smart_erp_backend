@@ -12,7 +12,7 @@ import {
   ChevronRight,
   MoreHorizontal
 } from 'lucide-react'
-import { useRole } from '../components/guards/RoleContext'
+import { useAuth } from '../components/guards/AuthContext'
 
 // Mock Data for Work Orders
 const MOCK_WORK_ORDERS = [
@@ -80,7 +80,8 @@ const MOCK_WORK_ORDERS = [
 ]
 
 const WorkOrdersPage = () => {
-  const { userRole } = useRole()
+  const { user } = useAuth()
+  const userRole = user?.role || 'staff'
   const [activeTab, setActiveTab] = useState('all') // all, production, service
   const [searchTerm, setSearchTerm] = useState('')
 

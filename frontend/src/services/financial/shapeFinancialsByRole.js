@@ -1,5 +1,3 @@
-import { ROLES, hasPermission } from '../../types/roles.js'
-
 /**
  * Shape financial data based on user role - DATA SECURITY LAYER
  * STRICTLY RESTRICTED TO OWNER ONLY
@@ -13,7 +11,7 @@ export const shapeFinancialsByRole = (rawFinancials, userRole) => {
   }
 
   // STRICT CHECK: Only Owner can view financial data
-  // Using the permission system defined in roles.js
+  // Simple role-based filtering
   if (!hasPermission(userRole, 'canViewFinancials')) {
     return null // Return null to indicate access denied
   }

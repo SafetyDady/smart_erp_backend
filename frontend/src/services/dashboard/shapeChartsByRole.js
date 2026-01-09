@@ -1,5 +1,3 @@
-import { ROLES, hasPermission } from '../../types/roles.js'
-
 /**
  * Shape charts data based on user role - DATA SECURITY LAYER
  * Filters chart data and removes sensitive financial information
@@ -18,7 +16,7 @@ export const shapeChartsByRole = (rawChartsData, userRole) => {
   if (hasPermission(userRole, 'canViewSalesChart')) {
     const salesData = rawChartsData.salesRevenue
     
-    if (userRole === ROLES.OWNER) {
+    if (userRole === 'owner') {
       // Owner gets full resolution and all metrics
       shaped.salesRevenue = {
         data: salesData?.data,
@@ -27,7 +25,7 @@ export const shapeChartsByRole = (rawChartsData, userRole) => {
         showProjections: true,
         metadata: salesData?.metadata
       }
-    } else if (userRole === ROLES.MANAGER) {
+    } else if (userRole === 'manager') {
       // Manager gets aggregated view, no profit margins
       shaped.salesRevenue = {
         data: salesData?.data?.map(item => ({
@@ -46,7 +44,7 @@ export const shapeChartsByRole = (rawChartsData, userRole) => {
   if (hasPermission(userRole, 'canViewInventoryChart')) {
     const inventoryData = rawChartsData.inventory
     
-    if (userRole === ROLES.STAFF) {
+    if (userRole === 'staff') {
       // Staff sees only operational status, no financial values
       shaped.inventory = {
         data: inventoryData?.data?.map(item => ({
@@ -72,7 +70,7 @@ export const shapeChartsByRole = (rawChartsData, userRole) => {
           }
           
           // Owner gets additional cost/profit data
-          if (userRole === ROLES.OWNER) {
+          if (userRole === 'owner') {
             return {
               ...baseData,
               cost: item.cost,

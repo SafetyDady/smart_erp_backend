@@ -1,5 +1,3 @@
-import { ROLES, hasPermission } from '../../types/roles.js'
-
 /**
  * Shape KPI data based on user role - DATA SECURITY LAYER
  * Removes sensitive financial data for non-authorized roles
@@ -16,7 +14,7 @@ export const shapeKpisByRole = (rawKpiData, userRole) => {
 
   // Revenue KPI - Owner + Manager (limited for manager)
   if (hasPermission(userRole, 'canViewRevenue')) {
-    if (userRole === ROLES.OWNER) {
+    if (userRole === 'owner') {
       // Owner gets full revenue details
       shaped.revenue = {
         value: rawKpiData.revenue?.value,
@@ -50,7 +48,7 @@ export const shapeKpisByRole = (rawKpiData, userRole) => {
   if (hasPermission(userRole, 'canViewOrders')) {
     const ordersData = rawKpiData.orders
 
-    if (userRole === ROLES.STAFF) {
+    if (userRole === 'staff') {
       // Staff sees only assigned orders count (no financial impact)
       shaped.orders = {
         value: ordersData?.assignedCount || 0,

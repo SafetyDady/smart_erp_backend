@@ -1,7 +1,4 @@
-import { ROLES } from '../../types/roles.js'
-
-/**
- * Shape products data based on user role - DATA SECURITY LAYER
+/**\n * Shape products data based on user role - DATA SECURITY LAYER
  * Filters product fields to protect sensitive financial information
  * @param {array} rawProducts - Raw product data from API
  * @param {string} userRole - User role (owner/manager/staff)
@@ -30,7 +27,7 @@ export const shapeProductsByRole = (rawProducts, userRole) => {
     }
 
     // Role-specific fields
-    if (userRole === ROLES.OWNER) {
+    if (userRole === 'owner') {
       // Owner sees everything including costs and margins
       return {
         ...shapedProduct,
@@ -43,7 +40,7 @@ export const shapeProductsByRole = (rawProducts, userRole) => {
       }
     }
 
-    if (userRole === ROLES.MANAGER) {
+    if (userRole === 'manager') {
       // Manager sees price but NOT cost/margin
       return {
         ...shapedProduct,
@@ -54,7 +51,7 @@ export const shapeProductsByRole = (rawProducts, userRole) => {
       }
     }
 
-    if (userRole === ROLES.STAFF) {
+    if (userRole === 'staff') {
       // Staff sees only operational data (no prices/costs)
       return {
         ...shapedProduct
