@@ -20,6 +20,10 @@ allowed_origins = [
     "http://localhost:5173",  # Local dev (Vite)
     "http://localhost:5174",  # Local dev (Vite alternative port)
     "http://localhost:5175",  # Local dev (Vite alternative port)
+    "http://127.0.0.1:3000",  # Local dev (Next.js)
+    "http://127.0.0.1:5173",  # Local dev (Vite)
+    "http://127.0.0.1:5174",  # Local dev (Vite alternative port)
+    "http://127.0.0.1:5175",  # Local dev (Vite alternative port)
     "https://*.vercel.app",   # Vercel deployments
     # Add your specific Vercel domain here:
     # "https://your-frontend.vercel.app",
@@ -33,7 +37,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 

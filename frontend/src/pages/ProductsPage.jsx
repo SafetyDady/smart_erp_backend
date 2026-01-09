@@ -18,6 +18,7 @@ const ProductsPage = () => {
   const [createError, setCreateError] = useState(null)
   const [formData, setFormData] = useState({
     name: '',
+    sku: '',
     product_type: 'product',
     cost: '',
     category: '',
@@ -60,7 +61,7 @@ const ProductsPage = () => {
     
     try {
       // Validate required fields
-      if (!formData.name.trim()) {
+      if (!formData.name || !formData.name.trim()) {
         throw new Error('Product name is required')
       }
       
@@ -71,11 +72,11 @@ const ProductsPage = () => {
       const costValue = parseFloat(formData.cost)
       const productData = {
         name: formData.name.trim(),
-        sku: formData.sku.trim() || null,
+        sku: (formData.sku || '').trim() || null,
         product_type: formData.product_type,
         cost: costValue,
         price: costValue, // Set price same as cost for simplicity
-        category: formData.category.trim() || null,
+        category: (formData.category || '').trim() || null,
         unit: formData.unit || 'pcs'
       }
       

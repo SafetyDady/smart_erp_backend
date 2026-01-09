@@ -210,6 +210,7 @@ class StockMovementRequest(BaseModel):
     """Stock movement request"""
     product_id: int = Field(..., gt=0)
     movement_type: MovementTypeSchema
+    work_order_id: Optional[int] = Field(None, gt=0)  # Required for CONSUME movements
     qty_input: float = Field(..., gt=0)
     unit_input: str = Field(..., min_length=1, max_length=50)
     unit_cost_input: Optional[float] = Field(None, gt=0)
@@ -232,6 +233,16 @@ class StockMovementRequest(BaseModel):
             if values['movement_type'] in [MovementTypeSchema.ISSUE, MovementTypeSchema.CONSUME] and v is not None:
                 raise ValueError('unit_cost_input not allowed for ISSUE/CONSUME movements')
         return v
+    
+    @validator('work_order_id')
+    def validate_work_order_for_consume(cls, v, values):
+        """Validate work_order_id required for CONSUME movements"""
+        if 'movement_type' in values:
+            if values['movement_type'] == MovementTypeSchema.CONSUME and v is None:
+                raise ValueError('work_order_id is required for CONSUME movements')
+            if values['movement_type'] in [MovementTypeSchema.RECEIVE, MovementTypeSchema.ISSUE, MovementTypeSchema.ADJUST] and v is not None:
+                raise ValueError('work_order_id only allowed for CONSUME movements')
+        return v
 
 
 class StockMovementResponse(BaseModel):
@@ -239,6 +250,7 @@ class StockMovementResponse(BaseModel):
     id: int
     product_id: int
     movement_type: MovementTypeSchema
+    work_order_id: Optional[int]
     qty_input: float
     unit_input: str
     multiplier_to_base: float

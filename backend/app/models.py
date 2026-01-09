@@ -137,6 +137,7 @@ class StockMovement(Base):
     id = Column(Integer, primary_key=True, index=True)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
     movement_type = Column(Enum(MovementType), nullable=False)
+    work_order_id = Column(Integer, ForeignKey("work_orders.id"), nullable=True)  # Required for CONSUME movements
     
     # Unit conversion fields
     qty_input = Column(Float, nullable=False)  # Quantity as entered by user
@@ -175,6 +176,7 @@ class StockMovement(Base):
     
     # Relationships
     product = relationship("Product", back_populates="movements")
+    work_order = relationship("WorkOrder", foreign_keys=[work_order_id])
 
 
 class WorkOrder(Base):
@@ -199,3 +201,6 @@ class WorkOrder(Base):
         Index("idx_wo_created_at", "created_at"),
         Index("idx_wo_cost_center", "cost_center"),
     )
+    
+    # Relationships
+    stock_movements = relationship("StockMovement", foreign_keys="StockMovement.work_order_id")

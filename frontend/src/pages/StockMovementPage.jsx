@@ -10,6 +10,7 @@ const StockMovementPage = () => {
   const [formData, setFormData] = useState({
     product_id: '',
     movement_type: 'RECEIVE',
+    work_order_id: '',
     qty_input: '',
     unit_input: 'PCS',
     unit_cost_input: '',
@@ -19,6 +20,7 @@ const StockMovementPage = () => {
   // UI state
   const [products, setProducts] = useState([])
   const [movements, setMovements] = useState([])
+  const [workOrders, setWorkOrders] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
@@ -27,24 +29,30 @@ const StockMovementPage = () => {
   const canCreateMovements = userRole !== 'staff'
   const isStaff = userRole === 'staff'
   
+  // Development mode: bypass auth for API calls
+  const authToken = user?.token || 'dev-token'
+  
   // Form validation
   const canSubmit = canCreateMovements && 
                    formData.product_id && 
                    formData.qty_input && 
-                   (formData.movement_type !== 'RECEIVE' || formData.unit_cost_input)
+                   (formData.movement_type !== 'RECEIVE' || formData.unit_cost_input) &&
+                   (formData.movement_type !== 'CONSUME' || formData.work_order_id)
 
   // Load products and movements on mount
   useEffect(() => {
     loadProducts()
     loadMovements()
+    loadWorkOrders()
   }, [])
 
   const loadProducts = async () => {
     try {
-      const response = await fetch(`${apiConfig.baseUrl}${apiConfig.endpoints.inventoryProducts}`, {
+      const response = await fetch(`${apiConfig.baseUrl}/inventory/products`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
         },
       })
       
@@ -65,6 +73,7 @@ const StockMovementPage = () => {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': user?.token ? `Bearer ${user.token}` : '',
         },
       })
       
@@ -79,6 +88,27 @@ const StockMovementPage = () => {
     }
   }
 
+  const loadWorkOrders = async () => {
+    try {
+      const response = await fetch(`${apiConfig.baseUrl}/stock/active-work-orders`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': user?.token ? `Bearer ${user.token}` : '',
+        },
+      })
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch work orders: ${response.status}`)
+      }
+      
+      const data = await response.json()
+      setWorkOrders(data || [])
+    } catch (err) {
+      console.error('Failed to load work orders:', err)
+    }
+  }
+
   const handleFormChange = (field, value) => {
     setFormData(prev => {
       const updated = { ...prev, [field]: value }
@@ -88,6 +118,10 @@ const StockMovementPage = () => {
         if (value !== 'RECEIVE') {
           updated.unit_cost_input = ''
           updated.unit_input = 'PCS' // Lock to PCS for ISSUE/CONSUME
+        }
+        // Reset work_order_id when not CONSUME
+        if (value !== 'CONSUME') {
+          updated.work_order_id = ''
         }
       }
       
@@ -117,9 +151,14 @@ const StockMovementPage = () => {
         throw new Error('Unit cost is required for RECEIVE movements')
       }
 
+      if (formData.movement_type === 'CONSUME' && !formData.work_order_id) {
+        throw new Error('Work Order is required for CONSUME movements')
+      }
+
       const payload = {
         product_id: parseInt(formData.product_id),
         movement_type: formData.movement_type,
+        work_order_id: formData.work_order_id ? parseInt(formData.work_order_id) : null,
         qty_input: parseFloat(formData.qty_input),
         unit_input: formData.unit_input,
         unit_cost_input: formData.unit_cost_input ? parseFloat(formData.unit_cost_input) : null,
@@ -130,6 +169,7 @@ const StockMovementPage = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': user?.token ? `Bearer ${user.token}` : '',
         },
         body: JSON.stringify(payload)
       })
@@ -143,6 +183,7 @@ const StockMovementPage = () => {
       setFormData({
         product_id: '',
         movement_type: 'RECEIVE',
+        work_order_id: '',
         qty_input: '',
         unit_input: 'PCS',
         unit_cost_input: '',
@@ -220,6 +261,31 @@ const StockMovementPage = () => {
                 <option value="ADJUST">ADJUST</option>
               </select>
             </div>
+
+            {/* Work Order selection - only for CONSUME movements */}
+            {formData.movement_type === 'CONSUME' && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Work Order *
+                </label>
+                <select
+                  value={formData.work_order_id}
+                  onChange={(e) => handleFormChange('work_order_id', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  required
+                >
+                  <option value="">Select a work order</option>
+                  {workOrders.map(wo => (
+                    <option key={wo.id} value={wo.id}>
+                      {wo.wo_number} - {wo.title}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-slate-500">
+                  Select the work order to consume materials for
+                </p>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">

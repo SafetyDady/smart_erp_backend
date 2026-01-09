@@ -361,7 +361,8 @@ class InventoryService:
         unit_input: str,
         unit_cost_input: Optional[float],
         performed_by: str,
-        note: Optional[str] = None
+        note: Optional[str] = None,
+        work_order_id: Optional[int] = None
     ) -> StockMovement:
         """Execute stock movement with unit conversion"""
         try:
@@ -379,6 +380,21 @@ class InventoryService:
 
             # Validate movement type
             movement_enum = MovementType[movement_type.upper()]
+            
+            # Validate work order for CONSUME movements
+            if movement_type.upper() == 'CONSUME':
+                if work_order_id is None:
+                    raise InventoryError("work_order_id is required for CONSUME movements")
+                
+                # Validate work order exists and is active
+                from .models import WorkOrder, WorkOrderStatus
+                work_order = self.db.query(WorkOrder).filter(WorkOrder.id == work_order_id).first()
+                if not work_order:
+                    raise InventoryError(f"Work Order {work_order_id} not found")
+                if work_order.status != WorkOrderStatus.OPEN:
+                    raise InventoryError(f"Work Order {work_order.wo_number} is not open for consumption")
+            elif work_order_id is not None:
+                raise InventoryError("work_order_id only allowed for CONSUME movements")
             
             # Get unit conversion multiplier
             multiplier_to_base = self.get_unit_multiplier(unit_input)
@@ -436,6 +452,7 @@ class InventoryService:
             movement = StockMovement(
                 product_id=product_id,
                 movement_type=movement_enum,
+                work_order_id=work_order_id,
                 qty_input=qty_input,
                 unit_input=unit_input.upper(),
                 multiplier_to_base=multiplier_to_base,

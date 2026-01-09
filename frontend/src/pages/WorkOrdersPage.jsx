@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, Search, Filter, Edit2, Calendar, FileText, Settings, CheckCircle2, Clock, MoreHorizontal } from 'lucide-react'
+import { Plus, Search, Filter, Edit2, Calendar, FileText, Settings, CheckCircle2, Clock, MoreHorizontal, Eye, X } from 'lucide-react'
 import { useAuth } from '../components/guards/AuthContext'
 import { apiConfig } from '../config/api'
 import LoadingState from '../components/common/LoadingState'
@@ -17,6 +17,9 @@ const WorkOrdersPage = () => {
   const [selectedWorkOrder, setSelectedWorkOrder] = useState(null)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [showEditForm, setShowEditForm] = useState(false)
+  const [showDetailView, setShowDetailView] = useState(false)
+  const [consumptionData, setConsumptionData] = useState(null)
+  const [loadingConsumptions, setLoadingConsumptions] = useState(false)
   
   // Form state
   const [formData, setFormData] = useState({
@@ -144,6 +147,32 @@ const WorkOrdersPage = () => {
     })
     setShowEditForm(true)
   }
+
+  const openDetailView = async (workOrder) => {
+    setSelectedWorkOrder(workOrder)
+    setShowDetailView(true)
+    setLoadingConsumptions(true)
+    setConsumptionData(null)
+    
+    try {
+      const response = await fetch(`${apiConfig.baseUrl}/work-orders/${workOrder.id}/consumptions`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to load consumption data')
+      }
+      
+      const data = await response.json()
+      setConsumptionData(data)
+    } catch (err) {
+      setError(`Failed to load consumption data: ${err.message}`)
+    } finally {
+      setLoadingConsumptions(false)
+    }
+  }
   
   const getStatusBadge = (status) => {
     const statusStyles = {
@@ -243,11 +272,9 @@ const WorkOrdersPage = () => {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Created
                 </th>
-                {canCreateEdit && (
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                )}
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -271,16 +298,26 @@ const WorkOrdersPage = () => {
                   <td className="px-4 py-3 text-sm text-gray-500">
                     {new Date(workOrder.created_at).toLocaleDateString()}
                   </td>
-                  {canCreateEdit && (
-                    <td className="px-4 py-3 text-sm">
+                  <td className="px-4 py-3 text-sm">
+                    <div className="flex items-center gap-2">
                       <button
-                        onClick={() => openEditForm(workOrder)}
-                        className="text-blue-600 hover:text-blue-800 p-1"
+                        onClick={() => openDetailView(workOrder)}
+                        className="text-green-600 hover:text-green-800 p-1"
+                        title="View Details & Consumption Trace"
                       >
-                        <Edit2 size={14} />
+                        <Eye size={14} />
                       </button>
-                    </td>
-                  )}
+                      {canCreateEdit && (
+                        <button
+                          onClick={() => openEditForm(workOrder)}
+                          className="text-blue-600 hover:text-blue-800 p-1"
+                          title="Edit Work Order"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -522,6 +559,172 @@ const WorkOrdersPage = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Work Order Detail View Modal */}
+      {showDetailView && selectedWorkOrder && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900">
+                    Work Order Details
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {selectedWorkOrder.wo_number} - {selectedWorkOrder.title}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowDetailView(false)
+                    setSelectedWorkOrder(null)
+                    setConsumptionData(null)
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {/* Work Order Info */}
+              <div className="mb-6">
+                <h4 className="text-md font-medium text-gray-900 mb-3">Work Order Information</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium text-gray-700">Status:</span>
+                    <div className="mt-1">{getStatusBadge(selectedWorkOrder.status)}</div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">Cost Center:</span>
+                    <p className="mt-1 text-gray-600">{selectedWorkOrder.cost_center}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">Cost Element:</span>
+                    <p className="mt-1 text-gray-600">{selectedWorkOrder.cost_element}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Consumption Trace */}
+              <div>
+                <h4 className="text-md font-medium text-gray-900 mb-3">Consumption Trace</h4>
+                
+                {loadingConsumptions ? (
+                  <div className="flex items-center justify-center py-8">
+                    <LoadingState message="Loading consumption data..." />
+                  </div>
+                ) : consumptionData ? (
+                  <>
+                    {/* Summary */}
+                    <div className="bg-blue-50 rounded-lg p-4 mb-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="font-medium text-blue-700">Total Consumed Quantity:</span>
+                          <p className="text-lg font-bold text-blue-900 mt-1">
+                            {consumptionData.summary.total_consumed_qty} PCS
+                          </p>
+                        </div>
+                        <div>
+                          <span className="font-medium text-blue-700">Total Consumed Value:</span>
+                          <p className="text-lg font-bold text-blue-900 mt-1">
+                            ฿{consumptionData.summary.total_consumed_value.toLocaleString('en-US', { 
+                              minimumFractionDigits: 2, 
+                              maximumFractionDigits: 2 
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Consumption Table */}
+                    {consumptionData.consumptions.length > 0 ? (
+                      <div className="overflow-x-auto">
+                        <table className="w-full border border-gray-200 rounded-lg">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Date/Time
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Product
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Qty (PCS)
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Unit Cost (฿)
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Total Value (฿)
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Note
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                User
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-200">
+                            {consumptionData.consumptions.map((consumption, index) => (
+                              <tr key={consumption.id} className="hover:bg-gray-50">
+                                <td className="px-4 py-3 text-sm text-gray-600">
+                                  {new Date(consumption.timestamp).toLocaleString()}
+                                </td>
+                                <td className="px-4 py-3 text-sm">
+                                  <div>
+                                    <div className="font-medium text-gray-900">{consumption.product.name}</div>
+                                    <div className="text-xs text-gray-500">{consumption.product.sku}</div>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 text-sm text-gray-900">
+                                  {consumption.quantity}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-gray-600">
+                                  {consumption.unit_cost.toLocaleString('en-US', { 
+                                    minimumFractionDigits: 2, 
+                                    maximumFractionDigits: 2 
+                                  })}
+                                </td>
+                                <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                                  {consumption.total_value.toLocaleString('en-US', { 
+                                    minimumFractionDigits: 2, 
+                                    maximumFractionDigits: 2 
+                                  })}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-gray-600">
+                                  {consumption.note || '-'}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-gray-600">
+                                  {consumption.created_by}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <FileText size={48} className="mx-auto mb-4 text-gray-300" />
+                        <p>No consumption records found for this work order.</p>
+                        <p className="text-sm mt-2">Create CONSUME stock movements to see them here.</p>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-center py-8 text-red-500">
+                    <p>Failed to load consumption data.</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

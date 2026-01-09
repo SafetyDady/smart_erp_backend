@@ -10,7 +10,7 @@ from typing import List
 
 from ..database import get_db
 from ..auth import get_current_user
-from ..models import WorkOrder, User
+from ..models import WorkOrder, User, StockMovement, Product
 from ..schemas import (
     CreateWorkOrderRequest,
     UpdateWorkOrderRequest, 
@@ -120,7 +120,7 @@ async def get_work_order(
     return work_order
 
 
-@router.patch("/{work_order_id}", response_model=WorkOrderResponse)
+@router.patch("/{work_order_id}")
 async def update_work_order(
     work_order_id: int,
     update_data: UpdateWorkOrderRequest,
@@ -148,7 +148,20 @@ async def update_work_order(
     try:
         db.commit()
         db.refresh(work_order)
-        return work_order
+        
+        # Return dict response to avoid Pydantic issues
+        return {
+            "id": work_order.id,
+            "wo_number": work_order.wo_number,
+            "title": work_order.title,
+            "description": work_order.description,
+            "status": work_order.status.value,
+            "cost_center": work_order.cost_center,
+            "cost_element": work_order.cost_element,
+            "created_by": work_order.created_by,
+            "created_at": work_order.created_at.isoformat(),
+            "updated_at": work_order.updated_at.isoformat() if work_order.updated_at else None
+        }
         
     except IntegrityError as e:
         db.rollback()
@@ -156,3 +169,67 @@ async def update_work_order(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Database integrity error"
         )
+
+
+@router.get("/{work_order_id}/consumptions")
+async def get_work_order_consumptions(
+    work_order_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get all CONSUME stock movements for a specific work order - all roles can view"""
+    # Check if work order exists
+    work_order = db.query(WorkOrder).filter(WorkOrder.id == work_order_id).first()
+    if not work_order:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Work Order with ID {work_order_id} not found"
+        )
+    
+    # Get all CONSUME movements for this work order with product details
+    consumptions = db.query(StockMovement, Product).join(
+        Product, StockMovement.product_id == Product.id
+    ).filter(
+        StockMovement.work_order_id == work_order_id,
+        StockMovement.movement_type == "CONSUME"
+    ).order_by(StockMovement.timestamp.desc()).all()
+    
+    # Format response with summary
+    consumption_list = []
+    total_qty = 0
+    total_value = 0.0
+    
+    for movement, product in consumptions:
+        item_value = float(movement.quantity) * float(movement.unit_cost or 0)
+        total_qty += movement.quantity
+        total_value += item_value
+        
+        consumption_list.append({
+            "id": movement.id,
+            "timestamp": movement.timestamp.isoformat(),
+            "product": {
+                "id": product.id,
+                "name": product.name,
+                "sku": product.sku,
+                "unit": product.unit
+            },
+            "quantity": movement.quantity,
+            "unit_cost": float(movement.unit_cost or 0),
+            "total_value": item_value,
+            "note": movement.note,
+            "created_by": movement.created_by
+        })
+    
+    return {
+        "work_order": {
+            "id": work_order.id,
+            "wo_number": work_order.wo_number,
+            "title": work_order.title
+        },
+        "summary": {
+            "total_consumed_qty": total_qty,
+            "total_consumed_value": total_value,
+            "currency": "THB"
+        },
+        "consumptions": consumption_list
+    }
