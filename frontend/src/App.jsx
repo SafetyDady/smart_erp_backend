@@ -12,6 +12,7 @@ import PurchasingPage from './pages/PurchasingPage'
 import CustomersPage from './pages/CustomersPage'
 import FinancialPage from './pages/FinancialPage'
 import HRPage from './pages/HRPage'
+import StockMovementPage from './pages/StockMovementPage'
 
 /**
  * App - Root application component
@@ -32,12 +33,14 @@ function App() {
  */
 function AppContent() {
   const { isAuthenticated, user, logout } = useAuth()
-  const { userRole, setUserRole } = useRole()
   const [currentPage, setCurrentPage] = React.useState('dashboard')
   const [notifications] = React.useState([
     { id: 1, message: 'New order received' },
     { id: 2, message: 'Weekly report ready' }
   ])
+
+  // Get actual user role from authenticated user
+  const actualUserRole = user?.role || 'staff'
 
   // Show login page if not authenticated
   if (!isAuthenticated) {
@@ -51,11 +54,6 @@ function AppContent() {
   const handleNavigate = (pageId) => {
     console.log(`Navigate to: ${pageId}`)
     setCurrentPage(pageId)
-  }
-
-  const handleRoleChange = (newRole) => {
-    console.log(`App: Role changed to ${newRole}`)
-    setUserRole(newRole)
   }
 
   const handleLogout = () => {
@@ -72,6 +70,8 @@ function AppContent() {
         return <DashboardPage />
       case 'products':
         return <ProductsPage />
+      case 'stock-movement':
+        return <StockMovementPage />
       case 'orders':
         return <OrdersPage />
       case 'work-orders':
@@ -93,12 +93,11 @@ function AppContent() {
 
   return (
     <AppLayout
-      userRole={userRole}
+      userRole={actualUserRole}
       currentPage={currentPage}
-      userName={user?.name || 'User'}
+      userName={user?.name || 'Unknown User'}
       notifications={notifications}
       onNavigate={handleNavigate}
-      onRoleChange={handleRoleChange}
       onLogout={handleLogout}
     >
       {renderContent()}

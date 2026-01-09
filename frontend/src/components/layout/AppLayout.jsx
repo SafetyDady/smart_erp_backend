@@ -15,7 +15,6 @@ const AppLayout = ({
   notifications = [],
   children,
   onNavigate = () => {},
-  onRoleChange = null,
   onLogout = () => {}
 }) => {
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
@@ -65,7 +64,7 @@ const AppLayout = ({
           userName={userName}
           notifications={notifications}
           onMenuClick={handleMenuClick}
-          onRoleChange={onRoleChange}
+          onLogout={onLogout}
         />
           
         {/* Page content - Scrollable area */}

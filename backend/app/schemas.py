@@ -197,3 +197,59 @@ class UserCreate(BaseModel):
     full_name: str
     password: str
     role: UserRoleSchema = UserRoleSchema.STAFF
+
+
+class StockMovementRequest(BaseModel):
+    """Stock movement request"""
+    product_id: int = Field(..., gt=0)
+    movement_type: MovementTypeSchema
+    qty_input: float = Field(..., gt=0)
+    unit_input: str = Field(..., min_length=1, max_length=50)
+    unit_cost_input: Optional[float] = Field(None, gt=0)
+    note: Optional[str] = Field(None, max_length=1000)
+    
+    @validator('unit_input')
+    def validate_unit_input(cls, v):
+        """Validate unit input is supported"""
+        valid_units = ['PCS', 'DOZEN']
+        if v.upper() not in valid_units:
+            raise ValueError(f'Unit must be one of: {valid_units}')
+        return v.upper()
+    
+    @validator('unit_cost_input')
+    def validate_unit_cost_for_receive(cls, v, values):
+        """Validate unit_cost_input required for RECEIVE"""
+        if 'movement_type' in values:
+            if values['movement_type'] == MovementTypeSchema.RECEIVE and v is None:
+                raise ValueError('unit_cost_input is required for RECEIVE movements')
+            if values['movement_type'] in [MovementTypeSchema.ISSUE, MovementTypeSchema.CONSUME] and v is not None:
+                raise ValueError('unit_cost_input not allowed for ISSUE/CONSUME movements')
+        return v
+
+
+class StockMovementResponse(BaseModel):
+    """Stock movement response"""
+    id: int
+    product_id: int
+    movement_type: MovementTypeSchema
+    qty_input: float
+    unit_input: str
+    multiplier_to_base: float
+    qty_base: float
+    unit_cost_input: Optional[float]
+    unit_cost_base: Optional[float]
+    value_total: Optional[float]
+    quantity: float
+    balance_after: float
+    performed_by: str
+    performed_at: datetime
+    created_at: datetime
+    note: Optional[str]
+    
+    # Reversal tracking
+    reversal_of_id: Optional[int]
+    reversed_at: Optional[datetime]
+    reversed_by: Optional[str]
+    
+    class Config:
+        from_attributes = True

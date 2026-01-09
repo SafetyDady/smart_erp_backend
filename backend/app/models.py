@@ -69,9 +69,11 @@ class Product(Base):
     product_type = Column(Enum(ProductType), nullable=False)
     category = Column(String(100), nullable=True)
     unit = Column(String(50), nullable=False, default="pcs")
+    base_unit = Column(String(50), nullable=False, default="PCS")
     
     # Cost enforcement: Materials must have cost >= 1 THB
     cost = Column(Float, nullable=False)
+    cost_per_base_unit = Column(Float, nullable=False, default=0.0)
     price = Column(Float, nullable=True)  # Null for non-sellable items
     
     # Metadata
@@ -129,6 +131,15 @@ class StockMovement(Base):
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
     movement_type = Column(Enum(MovementType), nullable=False)
     
+    # Unit conversion fields
+    qty_input = Column(Float, nullable=False)  # Quantity as entered by user
+    unit_input = Column(String(50), nullable=False)  # Unit as entered by user
+    multiplier_to_base = Column(Float, nullable=False, default=1.0)  # Conversion multiplier
+    qty_base = Column(Float, nullable=False)  # Quantity in base unit
+    unit_cost_input = Column(Float, nullable=True)  # Cost per input unit (RECEIVE only)
+    unit_cost_base = Column(Float, nullable=True)  # Cost per base unit
+    value_total = Column(Float, nullable=False, default=0.0)  # Total transaction value
+    
     # Quantity (positive for RECEIVE, negative for ISSUE/CONSUME/ADJUST-decrease)
     quantity = Column(Float, nullable=False)
     
@@ -138,7 +149,13 @@ class StockMovement(Base):
     # Audit trail
     performed_by = Column(String(100), nullable=False)  # user_id
     performed_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
     note = Column(Text, nullable=True)
+    
+    # Reversal tracking (immutable audit trail)
+    reversal_of_id = Column(Integer, ForeignKey("stock_movements.id"), nullable=True)
+    reversed_at = Column(DateTime(timezone=True), nullable=True)
+    reversed_by = Column(String(100), nullable=True)
     
     # Constraints
     __table_args__ = (
@@ -146,6 +163,7 @@ class StockMovement(Base):
         Index("idx_movements_product_date", "product_id", "performed_at"),
         Index("idx_movements_type_date", "movement_type", "performed_at"),
         Index("idx_movements_user", "performed_by"),
+        Index("idx_movements_reversal", "reversal_of_id"),
     )
     
     # Relationships

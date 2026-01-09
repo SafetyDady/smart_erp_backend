@@ -1,42 +1,6 @@
 import React from 'react'
-import { Menu, Bell, Search } from 'lucide-react'
+import { Menu, Bell, Search, LogOut } from 'lucide-react'
 import RoleGuard from '../guards/RoleGuard'
-import { useRole } from '../guards/RoleContext'
-import { ROLES } from '../../types/roles'
-
-/**
- * DevRoleSelector - DEV ONLY component for testing roles
- * Uses role context to update app-wide role state
- */
-const DevRoleSelector = ({ onRoleChange }) => {
-  const { userRole, setUserRole } = useRole()
-
-  const handleRoleChange = (newRole) => {
-    setUserRole(newRole)
-    
-    // Call external callback if provided
-    if (onRoleChange) {
-      onRoleChange(newRole)
-    }
-    
-    console.log(`DEV: Role changed to ${newRole}`)
-  }
-
-  return (
-    <div className="text-xs">
-      <label className="block text-slate-500 mb-1 font-medium sr-only">DEV ROLE:</label>
-      <select
-        value={userRole}
-        onChange={(e) => handleRoleChange(e.target.value)}
-        className="text-xs border border-slate-200 rounded-md px-2 py-1 bg-white/50 focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
-      >
-        <option value={ROLES.STAFF}>Staff</option>
-        <option value={ROLES.MANAGER}>Manager</option>
-        <option value={ROLES.OWNER}>Owner</option>
-      </select>
-    </div>
-  )
-}
 
 /**
  * TopBar - Glassmorphic header inside main column
@@ -47,7 +11,7 @@ const TopBar = ({
   userName = 'John Doe',
   notifications = [],
   onMenuClick,
-  onRoleChange = null
+  onLogout
 }) => {
   return (
     <header className="h-[var(--topbar-height)] glass sticky top-0 z-20 flex items-center justify-between px-6 border-b border-white/20">
@@ -106,12 +70,14 @@ const TopBar = ({
           </div>
         </div>
 
-        {/* DEV ONLY - Role selector */}
-        {import.meta.env.DEV && (
-          <div className="border-l border-slate-200 pl-4 ml-2">
-            <DevRoleSelector onRoleChange={onRoleChange} />
-          </div>
-        )}
+        {/* Logout Button */}
+        <button
+          onClick={onLogout}
+          className="p-2 text-slate-500 hover:bg-red-50 hover:text-red-600 rounded-full transition-colors"
+          title="Logout"
+        >
+          <LogOut size={18} />
+        </button>
       </div>
     </header>
   )

@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .api.inventory import router as inventory_router
 from .api.auth import router as auth_router
+from .api.stock import router as stock_router
 from .database import Base, engine
 
 app = FastAPI(
@@ -38,6 +39,7 @@ app.add_middleware(
 # Include routers
 app.include_router(inventory_router)
 app.include_router(auth_router)
+app.include_router(stock_router)
 
 @app.get("/")
 def root():
