@@ -24,6 +24,13 @@ class MovementTypeSchema(str, Enum):
     ADJUST = "ADJUST"
 
 
+class WorkOrderStatusSchema(str, Enum):
+    """Work Order status for API"""
+    DRAFT = "DRAFT"
+    OPEN = "OPEN"
+    CLOSED = "CLOSED"
+
+
 # Request Schemas
 class CreateProductRequest(BaseModel):
     """Create product request"""
@@ -250,6 +257,57 @@ class StockMovementResponse(BaseModel):
     reversal_of_id: Optional[int]
     reversed_at: Optional[datetime]
     reversed_by: Optional[str]
+    
+    class Config:
+        from_attributes = True
+
+
+# Work Order Schemas
+class CreateWorkOrderRequest(BaseModel):
+    """Create work order request"""
+    wo_number: str = Field(..., min_length=1, max_length=50)
+    title: str = Field(..., min_length=1, max_length=255)
+    description: Optional[str] = Field(None, max_length=2000)
+    status: WorkOrderStatusSchema = WorkOrderStatusSchema.OPEN
+    cost_center: str = Field(..., min_length=1, max_length=50)
+    cost_element: str = Field(..., min_length=1, max_length=50)
+
+
+class UpdateWorkOrderRequest(BaseModel):
+    """Update work order request"""
+    title: Optional[str] = Field(None, min_length=1, max_length=255)
+    description: Optional[str] = Field(None, max_length=2000)
+    status: Optional[WorkOrderStatusSchema] = None
+    cost_center: Optional[str] = Field(None, min_length=1, max_length=50)
+    cost_element: Optional[str] = Field(None, min_length=1, max_length=50)
+
+
+class WorkOrderResponse(BaseModel):
+    """Work order response"""
+    id: int
+    wo_number: str
+    title: str
+    description: Optional[str]
+    status: WorkOrderStatusSchema
+    cost_center: str
+    cost_element: str
+    created_by: str
+    created_at: datetime
+    updated_at: Optional[datetime]
+    
+    class Config:
+        from_attributes = True
+
+
+class WorkOrderListResponse(BaseModel):
+    """Work order list response"""
+    id: int
+    wo_number: str
+    title: str
+    status: WorkOrderStatusSchema
+    cost_center: str
+    cost_element: str
+    created_at: datetime
     
     class Config:
         from_attributes = True

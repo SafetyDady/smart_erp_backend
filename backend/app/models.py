@@ -34,6 +34,13 @@ class UserRole(enum.Enum):
     STAFF = "staff"
 
 
+class WorkOrderStatus(enum.Enum):
+    """Work Order status enumeration"""
+    DRAFT = "DRAFT"
+    OPEN = "OPEN"
+    CLOSED = "CLOSED"
+
+
 class User(Base):
     """User model for authentication and authorization"""
     __tablename__ = "users"
@@ -168,3 +175,27 @@ class StockMovement(Base):
     
     # Relationships
     product = relationship("Product", back_populates="movements")
+
+
+class WorkOrder(Base):
+    """Work Order model for manufacturing/service orders"""
+    __tablename__ = "work_orders"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    wo_number = Column(String(50), unique=True, nullable=False, index=True)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    status = Column(Enum(WorkOrderStatus), nullable=False, default=WorkOrderStatus.OPEN)
+    cost_center = Column(String(50), nullable=False)
+    cost_element = Column(String(50), nullable=False)
+    created_by = Column(String(100), nullable=False)  # user_id
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Constraints and indexes
+    __table_args__ = (
+        Index("idx_wo_number", "wo_number"),
+        Index("idx_wo_status", "status"),
+        Index("idx_wo_created_at", "created_at"),
+        Index("idx_wo_cost_center", "cost_center"),
+    )

@@ -1,4 +1,16 @@
 /**
+ * Permission helper function
+ */
+const hasPermission = (userRole, permission) => {
+  const permissions = {
+    canViewSalesChart: ['owner', 'manager'],
+    canViewInventoryChart: ['owner', 'manager', 'staff'],
+    canViewFinancialCharts: ['owner']
+  }
+  return permissions[permission]?.includes(userRole) || false
+}
+
+/**
  * Shape charts data based on user role - DATA SECURITY LAYER
  * Filters chart data and removes sensitive financial information
  * @param {object} rawChartsData - Raw charts data from API

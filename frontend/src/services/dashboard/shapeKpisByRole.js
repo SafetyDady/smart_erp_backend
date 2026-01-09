@@ -1,4 +1,17 @@
 /**
+ * Permission helper function
+ */
+const hasPermission = (userRole, permission) => {
+  const permissions = {
+    canViewRevenue: ['owner', 'manager'],
+    canViewProfit: ['owner'],
+    canViewAllOrders: ['owner', 'manager'],
+    canViewAllCustomers: ['owner', 'manager']
+  }
+  return permissions[permission]?.includes(userRole) || false
+}
+
+/**
  * Shape KPI data based on user role - DATA SECURITY LAYER
  * Removes sensitive financial data for non-authorized roles
  * @param {object} rawKpiData - Raw KPI data from API

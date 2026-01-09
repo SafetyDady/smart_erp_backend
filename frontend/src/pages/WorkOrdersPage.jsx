@@ -1,304 +1,533 @@
-import React, { useState } from 'react'
-import { 
-  ClipboardList, 
-  Plus, 
-  Search, 
-  Filter, 
-  Clock, 
-  CheckCircle2, 
-  AlertCircle, 
-  Hammer, 
-  Wrench,
-  ChevronRight,
-  MoreHorizontal
-} from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { Plus, Search, Filter, Edit2, Calendar, FileText, Settings, CheckCircle2, Clock, MoreHorizontal } from 'lucide-react'
 import { useAuth } from '../components/guards/AuthContext'
-
-// Mock Data for Work Orders
-const MOCK_WORK_ORDERS = [
-  {
-    id: 'WO-2024-001',
-    type: 'production', // production, service
-    title: 'Assemble Office Chairs Batch #45',
-    status: 'in_progress', // pending, in_progress, completed, on_hold
-    priority: 'high',
-    assignee: 'Production Team A',
-    startDate: '2024-03-15',
-    dueDate: '2024-03-20',
-    items: [
-      { name: 'Ergonomic Office Chair', quantity: 50, type: 'output' },
-      { name: 'Steel Frame Tube', quantity: 100, type: 'input' },
-      { name: 'Fabric Roll (Black)', quantity: 25, type: 'input' }
-    ],
-    progress: 65
-  },
-  {
-    id: 'WO-2024-002',
-    type: 'service',
-    title: 'Office Renovation - Client ABC',
-    status: 'pending',
-    priority: 'medium',
-    assignee: 'Service Team B',
-    startDate: '2024-03-18',
-    dueDate: '2024-03-25',
-    items: [
-      { name: 'Oak Wood Plank', quantity: 20, type: 'input' },
-      { name: 'Drill Bit Set', quantity: 1, type: 'consumable' },
-      { name: 'Safety Gloves', quantity: 5, type: 'consumable' }
-    ],
-    progress: 0
-  },
-  {
-    id: 'WO-2024-003',
-    type: 'production',
-    title: 'Custom Desk Manufacturing',
-    status: 'completed',
-    priority: 'normal',
-    assignee: 'Production Team A',
-    startDate: '2024-03-01',
-    dueDate: '2024-03-05',
-    items: [
-      { name: 'Standing Desk Converter', quantity: 10, type: 'output' }
-    ],
-    progress: 100
-  },
-  {
-    id: 'WO-2024-004',
-    type: 'service',
-    title: 'AC Maintenance - Building C',
-    status: 'in_progress',
-    priority: 'high',
-    assignee: 'Maintenance Crew',
-    startDate: '2024-03-16',
-    dueDate: '2024-03-16',
-    items: [
-      { name: 'Coolant Fluid', quantity: 5, type: 'consumable' },
-      { name: 'Filter Mesh', quantity: 10, type: 'input' }
-    ],
-    progress: 40
-  }
-]
+import { apiConfig } from '../config/api'
+import LoadingState from '../components/common/LoadingState'
 
 const WorkOrdersPage = () => {
   const { user } = useAuth()
   const userRole = user?.role || 'staff'
-  const [activeTab, setActiveTab] = useState('all') // all, production, service
+  
+  // State
+  const [workOrders, setWorkOrders] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+  const [success, setSuccess] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
-
-  // Filter Logic
-  const filteredOrders = MOCK_WORK_ORDERS.filter(order => {
-    const matchesTab = activeTab === 'all' || order.type === activeTab
-    const matchesSearch = order.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          order.id.toLowerCase().includes(searchTerm.toLowerCase())
-    return matchesTab && matchesSearch
+  const [selectedWorkOrder, setSelectedWorkOrder] = useState(null)
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [showEditForm, setShowEditForm] = useState(false)
+  
+  // Form state
+  const [formData, setFormData] = useState({
+    wo_number: '',
+    title: '',
+    description: '',
+    status: 'OPEN',
+    cost_center: '',
+    cost_element: ''
   })
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'completed': return 'bg-emerald-50 text-emerald-700 border-emerald-100'
-      case 'in_progress': return 'bg-blue-50 text-blue-700 border-blue-100'
-      case 'pending': return 'bg-amber-50 text-amber-700 border-amber-100'
-      default: return 'bg-slate-50 text-slate-600 border-slate-100'
+  
+  // Role-based permissions
+  const canCreateEdit = userRole === 'manager' || userRole === 'owner'
+  
+  // Load work orders
+  useEffect(() => {
+    loadWorkOrders()
+  }, [])
+  
+  const loadWorkOrders = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const response = await fetch(`${apiConfig.baseUrl}/work-orders`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      })
+      
+      if (!response.ok) {
+        throw new Error(`Failed to load work orders: ${response.status}`)
+      }
+      
+      const data = await response.json()
+      setWorkOrders(data)
+    } catch (err) {
+      console.error('Failed to load work orders:', err)
+      setError(err.message)
+    } finally {
+      setLoading(false)
     }
   }
-
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case 'high': return 'text-red-600 bg-red-50'
-      case 'medium': return 'text-amber-600 bg-amber-50'
-      default: return 'text-slate-600 bg-slate-50'
+  
+  const handleCreateSubmit = async (e) => {
+    e.preventDefault()
+    
+    try {
+      setError(null)
+      
+      const response = await fetch(`${apiConfig.baseUrl}/work-orders`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(formData)
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.detail || `Failed to create work order: ${response.status}`)
+      }
+      
+      setSuccess('Work order created successfully')
+      setShowCreateForm(false)
+      setFormData({
+        wo_number: '',
+        title: '',
+        description: '',
+        status: 'OPEN',
+        cost_center: '',
+        cost_element: ''
+      })
+      loadWorkOrders()
+    } catch (err) {
+      setError(err.message)
     }
   }
-
+  
+  const handleEditSubmit = async (e) => {
+    e.preventDefault()
+    
+    try {
+      setError(null)
+      
+      const response = await fetch(`${apiConfig.baseUrl}/work-orders/${selectedWorkOrder.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          title: formData.title,
+          description: formData.description,
+          status: formData.status,
+          cost_center: formData.cost_center,
+          cost_element: formData.cost_element
+        })
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.detail || `Failed to update work order: ${response.status}`)
+      }
+      
+      setSuccess('Work order updated successfully')
+      setShowEditForm(false)
+      setSelectedWorkOrder(null)
+      loadWorkOrders()
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+  
+  const openEditForm = (workOrder) => {
+    setSelectedWorkOrder(workOrder)
+    setFormData({
+      wo_number: workOrder.wo_number,
+      title: workOrder.title,
+      description: workOrder.description || '',
+      status: workOrder.status,
+      cost_center: workOrder.cost_center,
+      cost_element: workOrder.cost_element
+    })
+    setShowEditForm(true)
+  }
+  
+  const getStatusBadge = (status) => {
+    const statusStyles = {
+      DRAFT: 'bg-gray-100 text-gray-800',
+      OPEN: 'bg-blue-100 text-blue-800',
+      CLOSED: 'bg-green-100 text-green-800'
+    }
+    
+    return (
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusStyles[status] || statusStyles.OPEN}`}>
+        {status}
+      </span>
+    )
+  }
+  
+  // Filter work orders
+  const filteredWorkOrders = workOrders.filter(wo => 
+    wo.wo_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    wo.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    wo.cost_center.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+  
+  if (loading) {
+    return <LoadingState message="Loading work orders..." />
+  }
+  
   return (
-    <div className="space-y-6 pb-8">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Work Orders</h1>
-          <p className="mt-1 text-sm text-slate-500">Manage production jobs and service requests.</p>
-        </div>
-        <button className="btn btn-primary flex items-center gap-2">
-          <Plus size={18} />
-          Create Order
-        </button>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
-            <ClipboardList size={24} />
-          </div>
-          <div>
-            <p className="text-sm text-slate-500 font-medium">Active Orders</p>
-            <p className="text-2xl font-bold text-slate-800">12</p>
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-amber-50 text-amber-600 rounded-lg">
-            <Clock size={24} />
-          </div>
-          <div>
-            <p className="text-sm text-slate-500 font-medium">Pending Start</p>
-            <p className="text-2xl font-bold text-slate-800">5</p>
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-lg">
-            <CheckCircle2 size={24} />
-          </div>
-          <div>
-            <p className="text-sm text-slate-500 font-medium">Completed (This Month)</p>
-            <p className="text-2xl font-bold text-slate-800">28</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Filters & Tabs */}
-      <div className="flex flex-col sm:flex-row gap-4 bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-          <input 
-            type="text" 
-            placeholder="Search orders by ID or title..." 
-            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+          <h1 className="text-2xl font-bold text-gray-900">Work Orders</h1>
+          <p className="text-sm text-gray-600 mt-1">
+            Manage manufacturing and service work orders
+          </p>
         </div>
         
-        <div className="flex bg-slate-100 p-1 rounded-lg">
-          <button 
-            onClick={() => setActiveTab('all')}
-            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'all' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+        {canCreateEdit && (
+          <button
+            onClick={() => setShowCreateForm(true)}
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500/20 transition-colors"
           >
-            All
+            <Plus size={16} className="mr-2" />
+            Create Work Order
           </button>
-          <button 
-            onClick={() => setActiveTab('production')}
-            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-2 ${activeTab === 'production' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-          >
-            <Hammer size={14} />
-            Production
-          </button>
-          <button 
-            onClick={() => setActiveTab('service')}
-            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-2 ${activeTab === 'service' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-          >
-            <Wrench size={14} />
-            Service
-          </button>
+        )}
+      </div>
+      
+      {/* Error/Success Messages */}
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-sm text-red-700">{error}</p>
+        </div>
+      )}
+      
+      {success && (
+        <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+          <p className="text-sm text-green-700">{success}</p>
+        </div>
+      )}
+      
+      {/* Search */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="flex items-center gap-3">
+          <Search size={16} className="text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search by WO number, title, or cost center..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="flex-1 border-none outline-none text-sm"
+          />
         </div>
       </div>
-
-      {/* Orders List */}
-      <div className="space-y-4">
-        {filteredOrders.map(order => (
-          <div key={order.id} className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all p-5 group">
-            <div className="flex flex-col lg:flex-row gap-6">
-              {/* Left: Status & Icon */}
-              <div className="flex items-start gap-4 min-w-[200px]">
-                <div className={`p-3 rounded-lg ${order.type === 'production' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>
-                  {order.type === 'production' ? <Hammer size={24} /> : <Wrench size={24} />}
-                </div>
-                <div>
-                  <div className="text-xs font-mono text-slate-500 mb-1">{order.id}</div>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(order.status)}`}>
-                    {order.status.replace('_', ' ').toUpperCase()}
-                  </span>
-                </div>
-              </div>
-
-              {/* Middle: Details */}
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <h3 className="text-lg font-semibold text-slate-800">{order.title}</h3>
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${getPriorityColor(order.priority)}`}>
-                    {order.priority}
-                  </span>
-                </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-slate-600 mb-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-slate-400">Assignee:</span>
-                    <span className="font-medium">{order.assignee}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-slate-400">Due Date:</span>
-                    <span className="font-medium">{order.dueDate}</span>
-                  </div>
-                </div>
-
-                {/* Material Usage Preview */}
-                <div className="bg-slate-50 rounded-lg p-3 text-sm">
-                  <div className="text-xs font-semibold text-slate-500 uppercase mb-2 flex items-center gap-2">
-                    <Package size={12} />
-                    Material & Items
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {order.items.map((item, idx) => (
-                      <span key={idx} className={`px-2 py-1 rounded border text-xs ${
-                        item.type === 'output' ? 'bg-emerald-50 border-emerald-100 text-emerald-700' :
-                        item.type === 'consumable' ? 'bg-purple-50 border-purple-100 text-purple-700' :
-                        'bg-white border-slate-200 text-slate-600'
-                      }`}>
-                        {item.name} <span className="font-bold ml-1">x{item.quantity}</span>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Right: Actions & Progress */}
-              <div className="flex flex-col items-end justify-between min-w-[150px] border-l border-slate-100 pl-6">
-                <div className="w-full mb-4">
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-slate-500">Progress</span>
-                    <span className="font-bold text-slate-700">{order.progress}%</span>
-                  </div>
-                  <div className="w-full bg-slate-100 rounded-full h-2">
-                    <div 
-                      className={`h-2 rounded-full transition-all duration-500 ${
-                        order.status === 'completed' ? 'bg-emerald-500' : 'bg-blue-500'
-                      }`} 
-                      style={{ width: `${order.progress}%` }}
-                    ></div>
-                  </div>
-                </div>
-                
-                <button className="btn btn-secondary w-full flex items-center justify-center gap-2 group-hover:bg-blue-50 group-hover:text-blue-600 group-hover:border-blue-100 transition-all">
-                  View Details
-                  <ChevronRight size={16} />
+      
+      {/* Work Orders Table */}
+      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  WO Number
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Title
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Cost Center
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Cost Element
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Created
+                </th>
+                {canCreateEdit && (
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                )}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {filteredWorkOrders.map((workOrder) => (
+                <tr key={workOrder.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 text-sm font-medium text-blue-600">
+                    {workOrder.wo_number}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-900">
+                    {workOrder.title}
+                  </td>
+                  <td className="px-4 py-3 text-sm">
+                    {getStatusBadge(workOrder.status)}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-600">
+                    {workOrder.cost_center}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-600">
+                    {workOrder.cost_element}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-500">
+                    {new Date(workOrder.created_at).toLocaleDateString()}
+                  </td>
+                  {canCreateEdit && (
+                    <td className="px-4 py-3 text-sm">
+                      <button
+                        onClick={() => openEditForm(workOrder)}
+                        className="text-blue-600 hover:text-blue-800 p-1"
+                      >
+                        <Edit2 size={14} />
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          
+          {filteredWorkOrders.length === 0 && (
+            <div className="text-center py-8">
+              <FileText size={48} className="mx-auto text-gray-300 mb-4" />
+              <p className="text-gray-500">
+                {searchTerm ? 'No work orders found matching your search.' : 'No work orders created yet.'}
+              </p>
+              {canCreateEdit && !searchTerm && (
+                <button
+                  onClick={() => setShowCreateForm(true)}
+                  className="mt-4 text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  Create your first work order
                 </button>
-              </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* Create Work Order Modal */}
+      {showCreateForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Create Work Order</h3>
+              
+              <form onSubmit={handleCreateSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    WO Number *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.wo_number}
+                    onChange={(e) => setFormData({...formData, wo_number: e.target.value})}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    placeholder="e.g., WO-2026-001"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Title *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.title}
+                    onChange={(e) => setFormData({...formData, title: e.target.value})}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    placeholder="Brief work order title"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Description
+                  </label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({...formData, description: e.target.value})}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    placeholder="Detailed description of the work to be done"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Status
+                  </label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({...formData, status: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  >
+                    <option value="DRAFT">DRAFT</option>
+                    <option value="OPEN">OPEN</option>
+                    <option value="CLOSED">CLOSED</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Cost Center *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.cost_center}
+                    onChange={(e) => setFormData({...formData, cost_center: e.target.value})}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    placeholder="e.g., PROD-001"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Cost Element *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.cost_element}
+                    onChange={(e) => setFormData({...formData, cost_element: e.target.value})}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    placeholder="e.g., LABOR"
+                  />
+                </div>
+                
+                <div className="flex justify-end gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateForm(false)}
+                    className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    Create Work Order
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
-        ))}
-      </div>
+        </div>
+      )}
+      
+      {/* Edit Work Order Modal */}
+      {showEditForm && selectedWorkOrder && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Edit Work Order: {selectedWorkOrder.wo_number}
+              </h3>
+              
+              <form onSubmit={handleEditSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    WO Number
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.wo_number}
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Title *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.title}
+                    onChange={(e) => setFormData({...formData, title: e.target.value})}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Description
+                  </label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({...formData, description: e.target.value})}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Status
+                  </label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({...formData, status: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  >
+                    <option value="DRAFT">DRAFT</option>
+                    <option value="OPEN">OPEN</option>
+                    <option value="CLOSED">CLOSED</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Cost Center *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.cost_center}
+                    onChange={(e) => setFormData({...formData, cost_center: e.target.value})}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Cost Element *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.cost_element}
+                    onChange={(e) => setFormData({...formData, cost_element: e.target.value})}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  />
+                </div>
+                
+                <div className="flex justify-end gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowEditForm(false)}
+                    className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    Update Work Order
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
-
-// Helper Icon
-const Package = ({ size, className }) => (
-  <svg 
-    xmlns="http://www.w3.org/2000/svg" 
-    width={size} 
-    height={size} 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
-    strokeLinejoin="round" 
-    className={className}
-  >
-    <path d="m7.5 4.27 9 5.15" />
-    <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
-    <path d="m3.3 7 8.7 5 8.7-5" />
-    <path d="M12 22v-10" />
-  </svg>
-)
 
 export default WorkOrdersPage

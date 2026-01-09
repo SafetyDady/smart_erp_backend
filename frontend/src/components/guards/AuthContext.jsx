@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
+import { apiConfig } from '../../config/api'
 
 /**
  * AuthContext - Provides centralized authentication state management
@@ -31,7 +32,7 @@ export const AuthProvider = ({ children }) => {
 
   const fetchUserInfo = async (authToken) => {
     try {
-      const response = await fetch('http://localhost:8001/api/auth/me', {
+      const response = await fetch(`${apiConfig.baseUrl}/api/auth/me`, {
         headers: {
           'Authorization': `Bearer ${authToken}`
         }
@@ -54,7 +55,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     setIsLoading(true)
     try {
-      const response = await fetch('http://localhost:8001/api/auth/login', {
+      const response = await fetch(`${apiConfig.baseUrl}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

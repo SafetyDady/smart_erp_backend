@@ -49,9 +49,21 @@ def authenticate_user(db: Session, email: str, password: str) -> Union[User, boo
     """Authenticate user by email and password"""
     user = db.query(User).filter(User.email == email).first()
     if not user:
+        print(f"🚫 User not found: {email}")
         return False
-    if not verify_password(password, user.hashed_password):
+    
+    print(f"🔍 Verifying password for {email}")
+    print(f"🔍 Plain password: {password}")
+    print(f"🔍 Hashed password: {user.hashed_password}")
+    
+    is_valid = verify_password(password, user.hashed_password)
+    print(f"🔍 Password verification result: {is_valid}")
+    
+    if not is_valid:
+        print(f"🚫 Password verification failed for {email}")
         return False
+    
+    print(f"✅ Authentication successful for {email}")
     return user
 
 
