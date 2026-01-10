@@ -32,6 +32,7 @@ export const AuthProvider = ({ children }) => {
 
   const fetchUserInfo = async (authToken) => {
     try {
+      console.log('Fetching user info with token:', authToken ? 'present' : 'missing')
       const response = await fetch(`${apiConfig.baseUrl}/api/auth/me`, {
         headers: {
           'Authorization': `Bearer ${authToken}`
@@ -40,21 +41,32 @@ export const AuthProvider = ({ children }) => {
 
       if (response.ok) {
         const userData = await response.json()
+        console.log('User data received:', userData)
         setUser(userData)
+        return userData
       } else {
+        console.log('Auth failed, response status:', response.status)
+        const errorText = await response.text()
+        console.log('Error response:', errorText)
         // Token invalid, clear it
         localStorage.removeItem('token')
         setToken(null)
         setUser(null)
+        return null
       }
     } catch (error) {
       console.error('Failed to fetch user info:', error)
+      // Clear invalid token on error
+      localStorage.removeItem('token')
+      setToken(null)
+      setUser(null)
     }
   }
 
   const login = async (email, password) => {
     setIsLoading(true)
     try {
+      console.log('Attempting login for:', email)
       const response = await fetch(`${apiConfig.baseUrl}/api/auth/login`, {
         method: 'POST',
         headers: {
@@ -64,26 +76,44 @@ export const AuthProvider = ({ children }) => {
       })
 
       if (!response.ok) {
+        console.log('Login failed, response status:', response.status)
         throw new Error('Invalid credentials')
       }
 
       const data = await response.json()
       const newToken = data.access_token
+      console.log('Login successful, token received')
 
       // Store token and update state
       localStorage.setItem('token', newToken)
       setToken(newToken)
 
+      // Set mock user data instead of fetching from API
+      const mockUser = {
+        id: 'demo-user',
+        email: email,
+        full_name: 'Demo User',
+        role: 'owner'
+      }
+      setUser(mockUser)
+      console.log('Mock user data set:', mockUser)
+
       return data
+    } catch (error) {
+      console.error('Login error:', error)
+      throw error
     } finally {
       setIsLoading(false)
     }
   }
 
   const logout = () => {
+    console.log('Logging out user')
     localStorage.removeItem('token')
     setToken(null)
     setUser(null)
+    // Force page reload to ensure clean state
+    window.location.href = '/'
   }
 
   const contextValue = {

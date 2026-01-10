@@ -36,8 +36,20 @@ const WorkOrdersPage = () => {
   
   // Load work orders
   useEffect(() => {
-    loadWorkOrders()
-    loadCostCenters()
+    let isMounted = true
+    
+    const loadData = async () => {
+      if (isMounted) {
+        await loadWorkOrders()
+        await loadCostCenters()
+      }
+    }
+    
+    loadData()
+    
+    return () => {
+      isMounted = false
+    }
   }, [])
   
   const loadWorkOrders = async () => {
@@ -112,6 +124,9 @@ const WorkOrdersPage = () => {
         cost_center: ''
       })
       loadWorkOrders()
+      
+      // Auto clear success message
+      setTimeout(() => setSuccess(null), 3000)
     } catch (err) {
       setError(err.message)
     }
@@ -147,6 +162,9 @@ const WorkOrdersPage = () => {
       setShowEditForm(false)
       setSelectedWorkOrder(null)
       loadWorkOrders()
+      
+      // Auto clear success message
+      setTimeout(() => setSuccess(null), 3000)
     } catch (err) {
       setError(err.message)
     }

@@ -14,9 +14,9 @@ Base = declarative_base()
 
 class ProductType(enum.Enum):
     """Product type enumeration"""
-    PRODUCT = "product"          # Finished goods for sale (real stock)
-    MATERIAL = "material"        # Raw materials (real stock, cost >= 1 THB)
-    CONSUMABLE = "consumable"    # Consumables (approximate stock, batch consume)
+    PRODUCT = "PRODUCT"          # Finished goods for sale (real stock)
+    MATERIAL = "MATERIAL"        # Raw materials (real stock, cost >= 1 THB)
+    CONSUMABLE = "CONSUMABLE"    # Consumables (approximate stock, batch consume)
 
 
 class MovementType(enum.Enum):
@@ -29,9 +29,9 @@ class MovementType(enum.Enum):
 
 class UserRole(enum.Enum):
     """User role enumeration for authorization"""
-    OWNER = "owner"
-    MANAGER = "manager"
-    STAFF = "staff"
+    OWNER = "OWNER"
+    MANAGER = "MANAGER"
+    STAFF = "STAFF"
 
 
 class WorkOrderStatus(enum.Enum):
@@ -39,6 +39,16 @@ class WorkOrderStatus(enum.Enum):
     DRAFT = "DRAFT"
     OPEN = "OPEN"
     CLOSED = "CLOSED"
+
+
+class ZoneType(enum.Enum):
+    """Standard zone types for warehouse management"""
+    RECEIVING = "RECEIVING"      # Incoming goods waiting processing
+    QC_HOLD = "QC_HOLD"          # Quality control hold area
+    STORAGE = "STORAGE"          # Main storage area
+    PICK = "PICK"                # Picking area for outbound
+    DISPATCH = "DISPATCH"        # Ready to ship area
+    SCRAP = "SCRAP"              # Damaged/unusable items
 
 
 class User(Base):
@@ -90,7 +100,7 @@ class Product(Base):
     # Constraints
     __table_args__ = (
         CheckConstraint(
-            "product_type != 'material' OR cost >= 1.0",
+            "product_type != 'MATERIAL' OR cost >= 1.0",
             name="material_min_cost_constraint"
         ),
         Index("idx_products_type_category", "product_type", "category"),
@@ -103,13 +113,14 @@ class Product(Base):
 
 class StockBalance(Base):
     """
-    Current stock balances (one record per product)
-    Source of truth for on_hand quantities
+    Current stock balances (one record per product per zone)
+    Source of truth for on_hand quantities by location
     """
     __tablename__ = "stock_balances"
 
     id = Column(Integer, primary_key=True)
-    product_id = Column(Integer, ForeignKey("products.id"), unique=True, nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    zone_id = Column(Integer, ForeignKey("zones.id"), nullable=True)  # Nullable for backward compatibility
     on_hand = Column(Float, nullable=False, default=0.0)
     
     # Metadata
@@ -120,10 +131,14 @@ class StockBalance(Base):
     __table_args__ = (
         CheckConstraint("on_hand >= 0", name="non_negative_stock"),
         Index("idx_stock_balances_product", "product_id"),
+        Index("idx_stock_balances_zone", "zone_id"),
+        # Unique product per zone (when zone_id is not null)
+        Index("idx_stock_balances_product_zone", "product_id", "zone_id", unique=True),
     )
     
     # Relationships
     product = relationship("Product", back_populates="stock_balance")
+    zone = relationship("Zone", back_populates="stock_balances")
     last_movement = relationship("StockMovement", foreign_keys=[last_movement_id])
 
 
@@ -138,6 +153,7 @@ class StockMovement(Base):
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
     movement_type = Column(Enum(MovementType), nullable=False)
     work_order_id = Column(Integer, ForeignKey("work_orders.id"), nullable=True)  # Required for CONSUME movements
+    zone_id = Column(Integer, ForeignKey("zones.id"), nullable=True)  # Zone where stock is after movement
     
     # Cost allocation fields
     cost_center = Column(String(50), nullable=True)  # Required for ISSUE, copied from WO for CONSUME
@@ -177,11 +193,13 @@ class StockMovement(Base):
         Index("idx_movements_type_date", "movement_type", "performed_at"),
         Index("idx_movements_user", "performed_by"),
         Index("idx_movements_reversal", "reversal_of_id"),
+        Index("idx_movements_zone", "zone_id"),
     )
     
     # Relationships
     product = relationship("Product", back_populates="movements")
     work_order = relationship("WorkOrder", foreign_keys=[work_order_id])
+    zone = relationship("Zone")
 
 
 class WorkOrder(Base):
@@ -244,4 +262,55 @@ class CostElement(Base):
     __table_args__ = (
         Index("idx_cost_elements_code", "code"),
         Index("idx_cost_elements_active", "is_active"),
+    )
+
+
+class Warehouse(Base):
+    """Warehouse master for multi-warehouse support"""
+    __tablename__ = "warehouses"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String(20), unique=True, nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    warehouse_type = Column(String(20), nullable=False, default="MAIN")  # MAIN, SITE, TEMPORARY
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    # Relationships
+    zones = relationship("Zone", back_populates="warehouse", cascade="all, delete-orphan")
+    
+    # Constraints and indexes
+    __table_args__ = (
+        Index("idx_warehouses_code", "code"),
+        Index("idx_warehouses_active", "is_active"),
+        Index("idx_warehouses_type", "warehouse_type"),
+    )
+
+
+class Zone(Base):
+    """Zone master for standardized warehouse zones"""
+    __tablename__ = "zones"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    warehouse_id = Column(Integer, ForeignKey("warehouses.id"), nullable=False)
+    zone_type = Column(Enum(ZoneType), nullable=False)
+    name = Column(String(255), nullable=False)  # Display name (e.g., "Receiving Bay A")
+    description = Column(Text, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    # Relationships
+    warehouse = relationship("Warehouse", back_populates="zones")
+    stock_balances = relationship("StockBalance", back_populates="zone")
+    
+    # Constraints and indexes
+    __table_args__ = (
+        Index("idx_zones_warehouse", "warehouse_id"),
+        Index("idx_zones_type", "zone_type"),
+        Index("idx_zones_active", "is_active"),
+        # Unique zone type per warehouse (only one RECEIVING per warehouse, etc.)
+        Index("idx_zones_warehouse_type", "warehouse_id", "zone_type", unique=True),
     )

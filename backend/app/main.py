@@ -7,6 +7,7 @@ from .api.auth import router as auth_router
 from .api.stock import router as stock_router
 from .api.work_orders import router as work_orders_router
 from .api.master_data import router as master_data_router
+from .api.warehouse import router as warehouse_router
 from .database import Base, engine
 
 app = FastAPI(
@@ -48,6 +49,7 @@ app.include_router(auth_router)
 app.include_router(stock_router)
 app.include_router(work_orders_router)
 app.include_router(master_data_router)
+app.include_router(warehouse_router)
 
 @app.get("/")
 def root():

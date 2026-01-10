@@ -23,7 +23,11 @@ router = APIRouter(prefix="/work-orders", tags=["Work Orders"])
 
 def check_manager_or_owner(current_user: User = Depends(get_current_user)) -> User:
     """Check if user is manager or owner"""
-    if current_user.role.value not in ["manager", "owner"]:
+    # Normalize role to lowercase for case-insensitive comparison
+    user_role = current_user.role.value.lower()
+    allowed_roles = ["manager", "owner"]
+    
+    if user_role not in allowed_roles:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions. Manager or Owner role required."

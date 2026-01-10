@@ -13,7 +13,8 @@ import {
   ClipboardList,
   Wrench,
   Truck,
-  ArrowUpDown
+  ArrowUpDown,
+  Building2
 } from 'lucide-react'
 import RoleGuard from '../guards/RoleGuard'
 
@@ -71,6 +72,13 @@ const Sidebar = ({
       name: 'Stock Movement',
       icon: ArrowUpDown,
       href: '/stock-movement',
+      roles: ['owner', 'manager', 'staff']
+    },
+    {
+      id: 'warehouses',
+      name: 'Warehouses',
+      icon: Building2,
+      href: '/warehouses',
       roles: ['owner', 'manager', 'staff']
     },
     {

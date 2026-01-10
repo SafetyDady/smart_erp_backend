@@ -10,13 +10,12 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.models import Base, CostCenter, CostElement
+from app.database import engine, SessionLocal
 
 def create_master_data():
     """Create cost centers and cost elements"""
     
-    # Database connection
-    engine = create_engine("sqlite:///smart_erp.db")
-    SessionLocal = sessionmaker(bind=engine)
+    # Use database engine from app.database
     db = SessionLocal()
     
     try:

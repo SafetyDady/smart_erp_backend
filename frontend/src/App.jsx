@@ -12,6 +12,7 @@ import CustomersPage from './pages/CustomersPage'
 import FinancialPage from './pages/FinancialPage'
 import HRPage from './pages/HRPage'
 import StockMovementPage from './pages/StockMovementPage'
+import WarehousesPage from './pages/WarehousesPage'
 import CostCentersPage from './pages/CostCentersPage'
 import CostElementsPage from './pages/CostElementsPage'
 
@@ -71,6 +72,8 @@ function AppContent() {
         return <ProductsPage />
       case 'stock-movement':
         return <StockMovementPage />
+      case 'warehouses':
+        return <WarehousesPage />
       case 'orders':
         return <OrdersPage />
       case 'work-orders':
