@@ -213,6 +213,7 @@ class StockMovementRequest(BaseModel):
     work_order_id: Optional[int] = Field(None, gt=0)  # Required for CONSUME movements
     cost_center: Optional[str] = Field(None, min_length=1, max_length=50)  # Required for ISSUE
     cost_element: Optional[str] = Field(None, min_length=1, max_length=50)  # Required for ISSUE
+    cost_element_id: Optional[int] = Field(None, gt=0)  # Required for CONSUME movements
     qty_input: float = Field(..., gt=0)
     unit_input: str = Field(..., min_length=1, max_length=50)
     unit_cost_input: Optional[float] = Field(None, gt=0)
@@ -262,8 +263,18 @@ class StockMovementRequest(BaseModel):
         if 'movement_type' in values:
             if values['movement_type'] == MovementTypeSchema.ISSUE and not v:
                 raise ValueError('cost_element is required for ISSUE movements')
-            if values['movement_type'] in [MovementTypeSchema.RECEIVE, MovementTypeSchema.CONSUME, MovementTypeSchema.ADJUST] and v:
-                raise ValueError('cost_element not allowed for RECEIVE/CONSUME/ADJUST movements')
+            if values['movement_type'] in [MovementTypeSchema.RECEIVE, MovementTypeSchema.ADJUST] and v:
+                raise ValueError('cost_element not allowed for RECEIVE/ADJUST movements')
+        return v
+
+    @validator('cost_element_id')
+    def validate_cost_element_id_for_consume(cls, v, values):
+        """Validate cost_element_id required for CONSUME movements"""
+        if 'movement_type' in values:
+            if values['movement_type'] == MovementTypeSchema.CONSUME and v is None:
+                raise ValueError('cost_element_id is required for CONSUME movements')
+            if values['movement_type'] in [MovementTypeSchema.RECEIVE, MovementTypeSchema.ISSUE, MovementTypeSchema.ADJUST] and v is not None:
+                raise ValueError('cost_element_id only allowed for CONSUME movements')
         return v
 
 
@@ -307,7 +318,6 @@ class CreateWorkOrderRequest(BaseModel):
     description: Optional[str] = Field(None, max_length=1000)
     status: WorkOrderStatusSchema = Field(default=WorkOrderStatusSchema.OPEN)
     cost_center: str = Field(..., min_length=1, max_length=50)
-    cost_element: str = Field(..., min_length=1, max_length=50)
 
 
 class UpdateWorkOrderRequest(BaseModel):
@@ -316,7 +326,6 @@ class UpdateWorkOrderRequest(BaseModel):
     description: Optional[str] = Field(None, max_length=1000)
     status: Optional[WorkOrderStatusSchema] = None
     cost_center: Optional[str] = Field(None, min_length=1, max_length=50)
-    cost_element: Optional[str] = Field(None, min_length=1, max_length=50)
 
 
 class WorkOrderResponse(BaseModel):

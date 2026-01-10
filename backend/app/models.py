@@ -194,7 +194,7 @@ class WorkOrder(Base):
     description = Column(Text, nullable=True)
     status = Column(Enum(WorkOrderStatus), nullable=False, default=WorkOrderStatus.OPEN)
     cost_center = Column(String(50), nullable=False)
-    cost_element = Column(String(50), nullable=False)
+    cost_element = Column(String(50), nullable=True)  # Legacy field, nullable for new Cost Allocation Rules
     created_by = Column(String(100), nullable=False)  # user_id
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=True)
@@ -208,7 +208,7 @@ class WorkOrder(Base):
     )
     
     # Relationships
-    stock_movements = relationship("StockMovement", foreign_keys="StockMovement.work_order_id")
+    stock_movements = relationship("StockMovement", foreign_keys="StockMovement.work_order_id", overlaps="work_order")
 
 
 class CostCenter(Base):

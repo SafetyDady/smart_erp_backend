@@ -21,7 +21,6 @@ const WorkOrdersPage = () => {
   const [consumptionData, setConsumptionData] = useState(null)
   const [loadingConsumptions, setLoadingConsumptions] = useState(false)
   const [costCenters, setCostCenters] = useState([])
-  const [costElements, setCostElements] = useState([])
   
   // Form state
   const [formData, setFormData] = useState({
@@ -29,8 +28,7 @@ const WorkOrdersPage = () => {
     title: '',
     description: '',
     status: 'OPEN',
-    cost_center: '',
-    cost_element: ''
+    cost_center: ''
   })
   
   // Role-based permissions
@@ -40,7 +38,6 @@ const WorkOrdersPage = () => {
   useEffect(() => {
     loadWorkOrders()
     loadCostCenters()
-    loadCostElements()
   }, [])
   
   const loadWorkOrders = async () => {
@@ -85,30 +82,13 @@ const WorkOrdersPage = () => {
     }
   }
   
-  const loadCostElements = async () => {
-    try {
-      const response = await fetch(`${apiConfig.baseUrl}/master-data/cost-elements?active=true`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      })
-      
-      if (response.ok) {
-        const data = await response.json()
-        setCostElements(data)
-      }
-    } catch (err) {
-      console.error('Failed to load cost elements:', err)
-    }
-  }
-  
   const handleCreateSubmit = async (e) => {
     e.preventDefault()
     
     try {
       setError(null)
       
-      const response = await fetch(`${apiConfig.baseUrl}/work-orders`, {
+      const response = await fetch(`${apiConfig.baseUrl}/work-orders/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -129,8 +109,7 @@ const WorkOrdersPage = () => {
         title: '',
         description: '',
         status: 'OPEN',
-        cost_center: '',
-        cost_element: ''
+        cost_center: ''
       })
       loadWorkOrders()
     } catch (err) {
@@ -305,9 +284,6 @@ const WorkOrdersPage = () => {
                   Cost Center
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Cost Element
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Created
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -329,9 +305,6 @@ const WorkOrdersPage = () => {
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">
                     {workOrder.cost_center}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">
-                    {workOrder.cost_element}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-500">
                     {new Date(workOrder.created_at).toLocaleDateString()}
@@ -463,25 +436,6 @@ const WorkOrdersPage = () => {
                   </select>
                 </div>
                 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Cost Element *
-                  </label>
-                  <select
-                    value={formData.cost_element}
-                    onChange={(e) => setFormData({...formData, cost_element: e.target.value})}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  >
-                    <option value="">Select Cost Element</option>
-                    {costElements.map(element => (
-                      <option key={element.id} value={element.code}>
-                        {element.code} - {element.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                
                 <div className="flex justify-end gap-3 pt-4">
                   <button
                     type="button"
@@ -584,25 +538,6 @@ const WorkOrdersPage = () => {
                   </select>
                 </div>
                 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Cost Element *
-                  </label>
-                  <select
-                    value={formData.cost_element}
-                    onChange={(e) => setFormData({...formData, cost_element: e.target.value})}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  >
-                    <option value="">Select Cost Element</option>
-                    {costElements.map(element => (
-                      <option key={element.id} value={element.code}>
-                        {element.code} - {element.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                
                 <div className="flex justify-end gap-3 pt-4">
                   <button
                     type="button"
@@ -657,7 +592,7 @@ const WorkOrdersPage = () => {
               {/* Work Order Info */}
               <div className="mb-6">
                 <h4 className="text-md font-medium text-gray-900 mb-3">Work Order Information</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="font-medium text-gray-700">Status:</span>
                     <div className="mt-1">{getStatusBadge(selectedWorkOrder.status)}</div>
@@ -665,10 +600,6 @@ const WorkOrdersPage = () => {
                   <div>
                     <span className="font-medium text-gray-700">Cost Center:</span>
                     <p className="mt-1 text-gray-600">{selectedWorkOrder.cost_center}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-700">Cost Element:</span>
-                    <p className="mt-1 text-gray-600">{selectedWorkOrder.cost_element}</p>
                   </div>
                 </div>
               </div>

@@ -59,7 +59,8 @@ def create_stock_movement(
             note=request.note,
             work_order_id=request.work_order_id,  # Pass work order ID for CONSUME movements
             cost_center=request.cost_center,  # Pass cost center for ISSUE movements
-            cost_element=request.cost_element  # Pass cost element for ISSUE movements
+            cost_element=request.cost_element,  # Pass cost element for ISSUE movements
+            cost_element_id=request.cost_element_id  # Pass cost element ID for CONSUME movements
         )
         return StockMovementResponse.from_orm(movement)
         

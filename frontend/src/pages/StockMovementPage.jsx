@@ -25,6 +25,8 @@ const StockMovementPage = () => {
   const [workOrders, setWorkOrders] = useState([])
   const [costCenters, setCostCenters] = useState([])
   const [costElements, setCostElements] = useState([])
+  const [selectedCostElementId, setSelectedCostElementId] = useState('')
+  const [derivedCostCenterLabel, setDerivedCostCenterLabel] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
@@ -37,12 +39,16 @@ const StockMovementPage = () => {
   const authToken = user?.token || 'dev-token'
   
   // Form validation
+  const needsCostElement = formData.movement_type === 'ISSUE' || formData.movement_type === 'CONSUME'
+  const missingCostElement = needsCostElement && !selectedCostElementId
+  
   const canSubmit = canCreateMovements && 
                    formData.product_id && 
                    formData.qty_input && 
                    (formData.movement_type !== 'RECEIVE' || formData.unit_cost_input) &&
                    (formData.movement_type !== 'CONSUME' || formData.work_order_id) &&
-                   (formData.movement_type !== 'ISSUE' || (formData.cost_center && formData.cost_element))
+                   (formData.movement_type !== 'ISSUE' || formData.cost_center) &&
+                   !missingCostElement
 
   // Load products and movements on mount
   useEffect(() => {
@@ -171,12 +177,30 @@ const StockMovementPage = () => {
         // Reset work_order_id when not CONSUME
         if (value !== 'CONSUME') {
           updated.work_order_id = ''
+          updated.cost_center = ''
+          setDerivedCostCenterLabel('')
         }
         // Reset cost allocation when not ISSUE
         if (value !== 'ISSUE') {
           updated.cost_center = ''
           updated.cost_element = ''
         }
+        // Reset cost element selection
+        setSelectedCostElementId('')
+      }
+      
+      // Derive cost center from work order for CONSUME
+      if (field === 'work_order_id' && value && formData.movement_type === 'CONSUME') {
+        const selectedWO = workOrders.find(wo => wo.id == value)
+        if (selectedWO) {
+          updated.cost_center = selectedWO.cost_center
+          // Find cost center name for display
+          const costCenter = costCenters.find(cc => cc.code === selectedWO.cost_center)
+          const ccName = costCenter?.name || ''
+          setDerivedCostCenterLabel(ccName ? `${selectedWO.cost_center} - ${ccName}` : String(selectedWO.cost_center || ''))
+        }
+      } else if (field === 'work_order_id' && !value) {
+        setDerivedCostCenterLabel('')
       }
       
       return updated
@@ -209,20 +233,34 @@ const StockMovementPage = () => {
         throw new Error('Work Order is required for CONSUME movements')
       }
 
-      if (formData.movement_type === 'ISSUE' && (!formData.cost_center || !formData.cost_element)) {
+      if (formData.movement_type === 'CONSUME' && !selectedCostElementId) {
+        throw new Error('Cost Element is required for CONSUME movements')
+      }
+      
+      if (formData.movement_type === 'ISSUE' && (!formData.cost_center || !selectedCostElementId)) {
         throw new Error('Cost Center and Cost Element are required for ISSUE movements')
       }
 
       const payload = {
         product_id: parseInt(formData.product_id),
         movement_type: formData.movement_type,
-        work_order_id: formData.work_order_id ? parseInt(formData.work_order_id) : null,
-        cost_center: formData.cost_center || null,
-        cost_element: formData.cost_element || null,
         qty_input: parseFloat(formData.qty_input),
         unit_input: formData.unit_input,
         unit_cost_input: formData.unit_cost_input ? parseFloat(formData.unit_cost_input) : null,
         note: formData.note || null
+      }
+      
+      if (formData.movement_type === 'CONSUME') {
+        payload.work_order_id = parseInt(formData.work_order_id)
+        payload.cost_element_id = parseInt(selectedCostElementId)
+        // cost_center will be derived by backend from work_order
+      }
+      
+      if (formData.movement_type === 'ISSUE') {
+        payload.cost_center = formData.cost_center // Send cost center code as string
+        // Find cost element code from selected ID
+        const selectedCostElement = costElements.find(ce => ce.id == selectedCostElementId)
+        payload.cost_element = selectedCostElement?.code || ''
       }
 
       const response = await fetch(`${apiConfig.baseUrl}/stock/movements`, {
@@ -251,6 +289,8 @@ const StockMovementPage = () => {
         unit_cost_input: '',
         note: ''
       })
+      setSelectedCostElementId('')
+      setDerivedCostCenterLabel('')
       
       setSuccess('Stock movement created successfully')
       await Promise.all([loadProducts(), loadMovements()])
@@ -345,78 +385,78 @@ const StockMovementPage = () => {
                 <p className="mt-1 text-xs text-slate-500">
                   Select the work order to consume materials for
                 </p>
-                {/* Show derived cost center/element when WO is selected */}
-                {formData.work_order_id && (
-                  (() => {
-                    const selectedWO = workOrders.find(wo => wo.id === parseInt(formData.work_order_id))
-                    return selectedWO ? (
-                      <div className="mt-2 p-2 bg-blue-50 rounded text-sm">
-                        <p><strong>Cost Center:</strong> {selectedWO.cost_center}</p>
-                        <p><strong>Cost Element:</strong> {selectedWO.cost_element}</p>
-                      </div>
-                    ) : null
-                  })()
-                )}
+              </div>
+            )}
+
+            {/* Cost Center (read-only) - show for CONSUME after WO selection */}
+            {formData.movement_type === 'CONSUME' && derivedCostCenterLabel && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Cost Center
+                </label>
+                <input
+                  type="text"
+                  value={derivedCostCenterLabel}
+                  disabled
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 text-slate-600"
+                  placeholder="Derived from Work Order"
+                />
+                <p className="mt-1 text-xs text-slate-500">
+                  Automatically derived from selected Work Order
+                </p>
+              </div>
+            )}
+
+            {/* Cost Element dropdown - for ISSUE and CONSUME movements */}
+            {(formData.movement_type === 'ISSUE' || formData.movement_type === 'CONSUME') && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Cost Element *
+                </label>
+                <select
+                  value={selectedCostElementId}
+                  onChange={(e) => setSelectedCostElementId(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                >
+                  <option value="">Select a cost element</option>
+                  {costElements.map((ce) => (
+                    <option key={ce.id} value={ce.id}>
+                      {ce.code ? `${ce.code} - ${ce.name}` : ce.name}
+                    </option>
+                  ))}
+                </select>
+                <small className="mt-1 text-xs text-slate-500">Required for ISSUE and CONSUME</small>
               </div>
             )}
 
             {/* Cost allocation - only for ISSUE movements */}
             {formData.movement_type === 'ISSUE' && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Cost Center *
-                  </label>
-                  {costCenters.length > 0 ? (
-                    <select
-                      value={formData.cost_center}
-                      onChange={(e) => handleFormChange('cost_center', e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                      required
-                    >
-                      <option value="">Select cost center</option>
-                      {costCenters.map(cc => (
-                        <option key={cc.id} value={cc.code}>
-                          {cc.code} - {cc.name || 'No name'}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <div className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50">
-                      <span className="text-slate-500 text-sm">
-                        No cost centers available. Create in Settings → Cost Centers.
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Cost Element *
-                  </label>
-                  {costElements.length > 0 ? (
-                    <select
-                      value={formData.cost_element}
-                      onChange={(e) => handleFormChange('cost_element', e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                      required
-                    >
-                      <option value="">Select cost element</option>
-                      {costElements.map(ce => (
-                        <option key={ce.id} value={ce.code}>
-                          {ce.code} - {ce.name || 'No name'}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <div className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50">
-                      <span className="text-slate-500 text-sm">
-                        No cost elements available. Create in Settings → Cost Elements.
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Cost Center *
+                </label>
+                {costCenters.length > 0 ? (
+                  <select
+                    value={formData.cost_center}
+                    onChange={(e) => handleFormChange('cost_center', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    required
+                  >
+                    <option value="">Select cost center</option>
+                    {costCenters.map(cc => (
+                      <option key={cc.id} value={cc.code}>
+                        {cc.code} - {cc.name || 'No name'}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50">
+                    <span className="text-slate-500 text-sm">
+                      No cost centers available. Create in Settings → Cost Centers.
+                    </span>
+                  </div>
+                )}
+              </div>
             )}
 
             <div>

@@ -47,7 +47,6 @@ async def list_work_orders(
             "title": wo.title,
             "status": wo.status.value,
             "cost_center": wo.cost_center,
-            "cost_element": wo.cost_element,
             "created_at": wo.created_at.isoformat()
         })
     return result
@@ -61,8 +60,8 @@ async def create_work_order(
 ):
     """Create new work order - Manager/Owner only"""
     
-    # Validate cost center and cost element exist and are active
-    from ..models import CostCenter, CostElement
+    # Validate cost center exists and is active
+    from ..models import CostCenter
     
     cc = db.query(CostCenter).filter(
         CostCenter.code == work_order_data.cost_center,
@@ -74,16 +73,6 @@ async def create_work_order(
             detail=f"Invalid or inactive cost center: {work_order_data.cost_center}"
         )
     
-    ce = db.query(CostElement).filter(
-        CostElement.code == work_order_data.cost_element,
-        CostElement.is_active == True
-    ).first()
-    if not ce:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid or inactive cost element: {work_order_data.cost_element}"
-        )
-    
     try:
         work_order = WorkOrder(
             wo_number=work_order_data.wo_number,
@@ -91,13 +80,33 @@ async def create_work_order(
             description=work_order_data.description,
             status=work_order_data.status,
             cost_center=work_order_data.cost_center,
-            cost_element=work_order_data.cost_element,
             created_by=str(current_user.id)
         )
         
         db.add(work_order)
         db.commit()
         db.refresh(work_order)
+        
+    except IntegrityError as e:
+        db.rollback()
+        print(f"Database integrity error: {e}")
+        if "UNIQUE constraint failed" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Work order number already exists: {work_order_data.wo_number}"
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Database integrity error: {str(e)}"
+            )
+    except Exception as e:
+        db.rollback()
+        print(f"Unexpected error creating work order: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create work order: {str(e)}"
+        )
         
         # Convert to dict response
         return {
@@ -107,7 +116,6 @@ async def create_work_order(
             "description": work_order.description,
             "status": work_order.status.value,
             "cost_center": work_order.cost_center,
-            "cost_element": work_order.cost_element,
             "created_by": work_order.created_by,
             "created_at": work_order.created_at.isoformat(),
             "updated_at": work_order.updated_at.isoformat() if work_order.updated_at else None
@@ -181,7 +189,6 @@ async def update_work_order(
             "description": work_order.description,
             "status": work_order.status.value,
             "cost_center": work_order.cost_center,
-            "cost_element": work_order.cost_element,
             "created_by": work_order.created_by,
             "created_at": work_order.created_at.isoformat(),
             "updated_at": work_order.updated_at.isoformat() if work_order.updated_at else None

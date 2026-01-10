@@ -364,7 +364,8 @@ class InventoryService:
         note: Optional[str] = None,
         work_order_id: Optional[int] = None,
         cost_center: Optional[str] = None,
-        cost_element: Optional[str] = None
+        cost_element: Optional[str] = None,
+        cost_element_id: Optional[int] = None
     ) -> StockMovement:
         """Execute stock movement with unit conversion"""
         try:
@@ -373,12 +374,20 @@ class InventoryService:
             if not product:
                 raise InventoryError(f"Product {product_id} not found")
 
-            # Get current balance
+            # Get current balance (create if not exists for new products)
             balance = self.db.query(StockBalance).filter(
                 StockBalance.product_id == product_id
             ).first()
             if not balance:
-                raise InventoryError(f"Stock balance for product {product_id} not found")
+                # Create initial balance record for new products
+                from datetime import datetime
+                balance = StockBalance(
+                    product_id=product_id,
+                    on_hand=0.0,
+                    last_updated=datetime.now()
+                )
+                self.db.add(balance)
+                self.db.flush()  # Get the ID
 
             # Validate movement type
             movement_enum = MovementType[movement_type.upper()]
@@ -428,12 +437,12 @@ class InventoryService:
                 final_ref_type = "COST_CENTER"
                 
             elif movement_type.upper() == 'CONSUME':
-                # CONSUME: Requires work order, copy cost allocation from work order
+                # CONSUME: Requires work order and cost_element_id, derive cost_center from work order
                 if work_order_id is None:
                     raise InventoryError("work_order_id is required for CONSUME movements")
-                if cost_center is not None or cost_element is not None:
-                    # Ignore client-sent cost fields for CONSUME
-                    pass
+                if cost_element_id is None:
+                    raise InventoryError("cost_element_id is required for CONSUME movements")
+                # Ignore client-sent cost_center for CONSUME (will be derived from work order)
                 
                 # Validate work order exists and is active
                 from .models import WorkOrder, WorkOrderStatus
@@ -443,9 +452,18 @@ class InventoryService:
                 if work_order.status != WorkOrderStatus.OPEN:
                     raise InventoryError(f"Work Order {work_order.wo_number} is not open for consumption")
                 
-                # Copy cost allocation from work order
+                # Validate cost_element_id exists and is active
+                from .models import CostElement
+                ce = self.db.query(CostElement).filter(
+                    CostElement.id == cost_element_id,
+                    CostElement.is_active == True
+                ).first()
+                if not ce:
+                    raise InventoryError(f"Invalid or inactive cost element ID: {cost_element_id}")
+                
+                # Derive cost_center from work order, use cost_element code from validated record
                 final_cost_center = work_order.cost_center
-                final_cost_element = work_order.cost_element
+                final_cost_element = ce.code  # Use cost element code from validated record
                 final_ref_type = "WORK_ORDER"
                 
             else:
