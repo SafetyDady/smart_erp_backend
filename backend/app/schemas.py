@@ -211,9 +211,10 @@ class StockMovementRequest(BaseModel):
     product_id: int = Field(..., gt=0)
     movement_type: MovementTypeSchema
     work_order_id: Optional[int] = Field(None, gt=0)  # Required for CONSUME movements
-    cost_center: Optional[str] = Field(None, min_length=1, max_length=50)  # Required for ISSUE
-    cost_element: Optional[str] = Field(None, min_length=1, max_length=50)  # Required for ISSUE
-    cost_element_id: Optional[int] = Field(None, gt=0)  # Required for CONSUME movements
+    cost_center: Optional[str] = Field(None, min_length=1, max_length=50)  # Legacy field (deprecated)
+    cost_element: Optional[str] = Field(None, min_length=1, max_length=50)  # Legacy field (deprecated)
+    cost_center_id: Optional[int] = Field(None, gt=0)  # Required for ISSUE movements
+    cost_element_id: Optional[int] = Field(None, gt=0)  # Required for ISSUE/CONSUME movements
     qty_input: float = Field(..., gt=0)
     unit_input: str = Field(..., min_length=1, max_length=50)
     unit_cost_input: Optional[float] = Field(None, gt=0)
@@ -248,33 +249,37 @@ class StockMovementRequest(BaseModel):
         return v
 
     @validator('cost_center')
-    def validate_cost_center_for_issue(cls, v, values):
-        """Validate cost_center required for ISSUE movements"""
-        if 'movement_type' in values:
-            if values['movement_type'] == MovementTypeSchema.ISSUE and not v:
-                raise ValueError('cost_center is required for ISSUE movements')
-            if values['movement_type'] in [MovementTypeSchema.RECEIVE, MovementTypeSchema.CONSUME, MovementTypeSchema.ADJUST] and v:
-                raise ValueError('cost_center not allowed for RECEIVE/CONSUME/ADJUST movements')
+    def validate_cost_center_deprecated(cls, v, values):
+        """DEPRECATED: cost_center field is deprecated, use cost_center_id instead"""
+        if v is not None:
+            raise ValueError('cost_center field is deprecated. Use cost_center_id instead for ISSUE movements')
         return v
 
     @validator('cost_element')
-    def validate_cost_element_for_issue(cls, v, values):
-        """Validate cost_element required for ISSUE movements"""
-        if 'movement_type' in values:
-            if values['movement_type'] == MovementTypeSchema.ISSUE and not v:
-                raise ValueError('cost_element is required for ISSUE movements')
-            if values['movement_type'] in [MovementTypeSchema.RECEIVE, MovementTypeSchema.ADJUST] and v:
-                raise ValueError('cost_element not allowed for RECEIVE/ADJUST movements')
+    def validate_cost_element_deprecated(cls, v, values):
+        """DEPRECATED: cost_element field is deprecated, use cost_element_id instead"""
+        if v is not None:
+            raise ValueError('cost_element field is deprecated. Use cost_element_id instead for ISSUE movements')
         return v
 
     @validator('cost_element_id')
-    def validate_cost_element_id_for_consume(cls, v, values):
-        """Validate cost_element_id required for CONSUME movements"""
+    def validate_cost_element_id_for_issue_consume(cls, v, values):
+        """Validate cost_element_id required for ISSUE and CONSUME movements"""
         if 'movement_type' in values:
-            if values['movement_type'] == MovementTypeSchema.CONSUME and v is None:
-                raise ValueError('cost_element_id is required for CONSUME movements')
-            if values['movement_type'] in [MovementTypeSchema.RECEIVE, MovementTypeSchema.ISSUE, MovementTypeSchema.ADJUST] and v is not None:
-                raise ValueError('cost_element_id only allowed for CONSUME movements')
+            if values['movement_type'] in [MovementTypeSchema.ISSUE, MovementTypeSchema.CONSUME] and v is None:
+                raise ValueError('cost_element_id is required for ISSUE and CONSUME movements')
+            if values['movement_type'] in [MovementTypeSchema.RECEIVE, MovementTypeSchema.ADJUST] and v is not None:
+                raise ValueError('cost_element_id only allowed for ISSUE and CONSUME movements')
+        return v
+
+    @validator('cost_center_id')
+    def validate_cost_center_id_for_issue(cls, v, values):
+        """Validate cost_center_id required for ISSUE movements"""
+        if 'movement_type' in values:
+            if values['movement_type'] == MovementTypeSchema.ISSUE and v is None:
+                raise ValueError('cost_center_id is required for ISSUE movements')
+            if values['movement_type'] in [MovementTypeSchema.RECEIVE, MovementTypeSchema.CONSUME, MovementTypeSchema.ADJUST] and v is not None:
+                raise ValueError('cost_center_id only allowed for ISSUE movements')
         return v
 
 

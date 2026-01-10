@@ -365,6 +365,7 @@ class InventoryService:
         work_order_id: Optional[int] = None,
         cost_center: Optional[str] = None,
         cost_element: Optional[str] = None,
+        cost_center_id: Optional[int] = None,
         cost_element_id: Optional[int] = None
     ) -> StockMovement:
         """Execute stock movement with unit conversion"""
@@ -407,33 +408,40 @@ class InventoryService:
                 # Cost fields remain None
                 
             elif movement_type.upper() == 'ISSUE':
-                # ISSUE: Requires cost_center and cost_element, no work order
+                # ISSUE: Requires cost_center_id and cost_element_id, no work order
                 if work_order_id is not None:
                     raise InventoryError("work_order_id not allowed for ISSUE movements")
-                if not cost_center:
-                    raise InventoryError("cost_center is required for ISSUE movements")
-                if not cost_element:
-                    raise InventoryError("cost_element is required for ISSUE movements")
+                if cost_center_id is None:
+                    raise InventoryError("cost_center_id is required for ISSUE movements")
+                if cost_element_id is None:
+                    raise InventoryError("cost_element_id is required for ISSUE movements")
                 
-                # Validate cost_center exists and is active
+                # Reject deprecated fields
+                if cost_center is not None:
+                    raise InventoryError("cost_center field is deprecated. Use cost_center_id instead")
+                if cost_element is not None:
+                    raise InventoryError("cost_element field is deprecated. Use cost_element_id instead")
+                
+                # Validate cost_center_id exists and is active
                 from .models import CostCenter, CostElement
                 cc = self.db.query(CostCenter).filter(
-                    CostCenter.code == cost_center,
+                    CostCenter.id == cost_center_id,
                     CostCenter.is_active == True
                 ).first()
                 if not cc:
-                    raise InventoryError(f"Invalid or inactive cost center: {cost_center}")
+                    raise InventoryError(f"Invalid or inactive cost center ID: {cost_center_id}")
                 
-                # Validate cost_element exists and is active
+                # Validate cost_element_id exists and is active
                 ce = self.db.query(CostElement).filter(
-                    CostElement.code == cost_element,
+                    CostElement.id == cost_element_id,
                     CostElement.is_active == True
                 ).first()
                 if not ce:
-                    raise InventoryError(f"Invalid or inactive cost element: {cost_element}")
+                    raise InventoryError(f"Invalid or inactive cost element ID: {cost_element_id}")
                 
-                final_cost_center = cost_center
-                final_cost_element = cost_element
+                # Use codes from validated records for final storage
+                final_cost_center = cc.code
+                final_cost_element = ce.code
                 final_ref_type = "COST_CENTER"
                 
             elif movement_type.upper() == 'CONSUME':

@@ -257,10 +257,11 @@ const StockMovementPage = () => {
       }
       
       if (formData.movement_type === 'ISSUE') {
-        payload.cost_center = formData.cost_center // Send cost center code as string
-        // Find cost element code from selected ID
-        const selectedCostElement = costElements.find(ce => ce.id == selectedCostElementId)
-        payload.cost_element = selectedCostElement?.code || ''
+        // Find cost center record from selected value
+        const selectedCostCenter = costCenters.find(cc => cc.code === formData.cost_center)
+        payload.cost_center_id = selectedCostCenter ? selectedCostCenter.id : null
+        payload.cost_element_id = parseInt(selectedCostElementId)
+        // No longer send deprecated cost_center/cost_element string fields
       }
 
       const response = await fetch(`${apiConfig.baseUrl}/stock/movements`, {
