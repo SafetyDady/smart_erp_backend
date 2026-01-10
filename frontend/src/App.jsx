@@ -12,6 +12,8 @@ import CustomersPage from './pages/CustomersPage'
 import FinancialPage from './pages/FinancialPage'
 import HRPage from './pages/HRPage'
 import StockMovementPage from './pages/StockMovementPage'
+import CostCentersPage from './pages/CostCentersPage'
+import CostElementsPage from './pages/CostElementsPage'
 
 /**
  * App - Root application component
@@ -49,7 +51,7 @@ function AppContent() {
 
   // Simple state-based routing
   const handleNavigate = (pageId) => {
-    console.log(`Navigate to: ${pageId}`)
+    console.log('Navigate to: ' + pageId)
     setCurrentPage(pageId)
   }
 
@@ -83,6 +85,10 @@ function AppContent() {
         return <FinancialPage />
       case 'hr':
         return <HRPage />
+      case 'cost-centers':
+        return <CostCentersPage />
+      case 'cost-elements':
+        return <CostElementsPage />
       default:
         return <DashboardPage />
     }

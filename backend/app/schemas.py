@@ -211,6 +211,8 @@ class StockMovementRequest(BaseModel):
     product_id: int = Field(..., gt=0)
     movement_type: MovementTypeSchema
     work_order_id: Optional[int] = Field(None, gt=0)  # Required for CONSUME movements
+    cost_center: Optional[str] = Field(None, min_length=1, max_length=50)  # Required for ISSUE
+    cost_element: Optional[str] = Field(None, min_length=1, max_length=50)  # Required for ISSUE
     qty_input: float = Field(..., gt=0)
     unit_input: str = Field(..., min_length=1, max_length=50)
     unit_cost_input: Optional[float] = Field(None, gt=0)
@@ -244,6 +246,26 @@ class StockMovementRequest(BaseModel):
                 raise ValueError('work_order_id only allowed for CONSUME movements')
         return v
 
+    @validator('cost_center')
+    def validate_cost_center_for_issue(cls, v, values):
+        """Validate cost_center required for ISSUE movements"""
+        if 'movement_type' in values:
+            if values['movement_type'] == MovementTypeSchema.ISSUE and not v:
+                raise ValueError('cost_center is required for ISSUE movements')
+            if values['movement_type'] in [MovementTypeSchema.RECEIVE, MovementTypeSchema.CONSUME, MovementTypeSchema.ADJUST] and v:
+                raise ValueError('cost_center not allowed for RECEIVE/CONSUME/ADJUST movements')
+        return v
+
+    @validator('cost_element')
+    def validate_cost_element_for_issue(cls, v, values):
+        """Validate cost_element required for ISSUE movements"""
+        if 'movement_type' in values:
+            if values['movement_type'] == MovementTypeSchema.ISSUE and not v:
+                raise ValueError('cost_element is required for ISSUE movements')
+            if values['movement_type'] in [MovementTypeSchema.RECEIVE, MovementTypeSchema.CONSUME, MovementTypeSchema.ADJUST] and v:
+                raise ValueError('cost_element not allowed for RECEIVE/CONSUME/ADJUST movements')
+        return v
+
 
 class StockMovementResponse(BaseModel):
     """Stock movement response"""
@@ -251,6 +273,9 @@ class StockMovementResponse(BaseModel):
     product_id: int
     movement_type: MovementTypeSchema
     work_order_id: Optional[int]
+    cost_center: Optional[str]
+    cost_element: Optional[str]
+    ref_type: Optional[str]
     qty_input: float
     unit_input: str
     multiplier_to_base: float
@@ -279,10 +304,103 @@ class CreateWorkOrderRequest(BaseModel):
     """Create work order request"""
     wo_number: str = Field(..., min_length=1, max_length=50)
     title: str = Field(..., min_length=1, max_length=255)
-    description: Optional[str] = Field(None, max_length=2000)
-    status: WorkOrderStatusSchema = WorkOrderStatusSchema.OPEN
+    description: Optional[str] = Field(None, max_length=1000)
+    status: WorkOrderStatusSchema = Field(default=WorkOrderStatusSchema.OPEN)
     cost_center: str = Field(..., min_length=1, max_length=50)
     cost_element: str = Field(..., min_length=1, max_length=50)
+
+
+class UpdateWorkOrderRequest(BaseModel):
+    """Update work order request"""
+    title: Optional[str] = Field(None, min_length=1, max_length=255)
+    description: Optional[str] = Field(None, max_length=1000)
+    status: Optional[WorkOrderStatusSchema] = None
+    cost_center: Optional[str] = Field(None, min_length=1, max_length=50)
+    cost_element: Optional[str] = Field(None, min_length=1, max_length=50)
+
+
+class WorkOrderResponse(BaseModel):
+    """Work order response"""
+    id: int
+    wo_number: str
+    title: str
+    description: Optional[str]
+    status: WorkOrderStatusSchema
+    cost_center: str
+    cost_element: str
+    created_by: str
+    created_at: datetime
+    updated_at: Optional[datetime]
+    
+    class Config:
+        from_attributes = True
+
+
+# Cost Master Data Schemas
+class CreateCostCenterRequest(BaseModel):
+    """Create cost center request"""
+    code: str = Field(..., min_length=1, max_length=50)
+    name: Optional[str] = Field(None, max_length=255)
+    
+    @validator('code')
+    def validate_code(cls, v):
+        """Validate code format: uppercase, digits, underscore, hyphen only"""
+        import re
+        if not re.match(r'^[A-Z0-9_-]+$', v.upper()):
+            raise ValueError('Code must contain only uppercase letters, digits, underscore, or hyphen')
+        return v.upper()
+
+
+class UpdateCostCenterRequest(BaseModel):
+    """Update cost center request"""
+    name: Optional[str] = Field(None, max_length=255)
+    is_active: Optional[bool] = None
+
+
+class CostCenterResponse(BaseModel):
+    """Cost center response"""
+    id: int
+    code: str
+    name: Optional[str]
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class CreateCostElementRequest(BaseModel):
+    """Create cost element request"""
+    code: str = Field(..., min_length=1, max_length=50)
+    name: Optional[str] = Field(None, max_length=255)
+    
+    @validator('code')
+    def validate_code(cls, v):
+        """Validate code format: uppercase, digits, underscore, hyphen only"""
+        import re
+        if not re.match(r'^[A-Z0-9_-]+$', v.upper()):
+            raise ValueError('Code must contain only uppercase letters, digits, underscore, or hyphen')
+        return v.upper()
+
+
+class UpdateCostElementRequest(BaseModel):
+    """Update cost element request"""
+    name: Optional[str] = Field(None, max_length=255)
+    is_active: Optional[bool] = None
+
+
+class CostElementResponse(BaseModel):
+    """Cost element response"""
+    id: int
+    code: str
+    name: Optional[str]
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
 
 
 class UpdateWorkOrderRequest(BaseModel):

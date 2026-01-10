@@ -362,7 +362,9 @@ class InventoryService:
         unit_cost_input: Optional[float],
         performed_by: str,
         note: Optional[str] = None,
-        work_order_id: Optional[int] = None
+        work_order_id: Optional[int] = None,
+        cost_center: Optional[str] = None,
+        cost_element: Optional[str] = None
     ) -> StockMovement:
         """Execute stock movement with unit conversion"""
         try:
@@ -381,10 +383,57 @@ class InventoryService:
             # Validate movement type
             movement_enum = MovementType[movement_type.upper()]
             
-            # Validate work order for CONSUME movements
-            if movement_type.upper() == 'CONSUME':
+            # Initialize cost allocation variables
+            final_cost_center = None
+            final_cost_element = None
+            final_ref_type = None
+            
+            # Movement type specific validation and cost allocation
+            if movement_type.upper() == 'RECEIVE':
+                # RECEIVE: No work order, no cost allocation
+                if work_order_id is not None:
+                    raise InventoryError("work_order_id not allowed for RECEIVE movements")
+                if cost_center is not None or cost_element is not None:
+                    raise InventoryError("cost_center and cost_element not allowed for RECEIVE movements")
+                # Cost fields remain None
+                
+            elif movement_type.upper() == 'ISSUE':
+                # ISSUE: Requires cost_center and cost_element, no work order
+                if work_order_id is not None:
+                    raise InventoryError("work_order_id not allowed for ISSUE movements")
+                if not cost_center:
+                    raise InventoryError("cost_center is required for ISSUE movements")
+                if not cost_element:
+                    raise InventoryError("cost_element is required for ISSUE movements")
+                
+                # Validate cost_center exists and is active
+                from .models import CostCenter, CostElement
+                cc = self.db.query(CostCenter).filter(
+                    CostCenter.code == cost_center,
+                    CostCenter.is_active == True
+                ).first()
+                if not cc:
+                    raise InventoryError(f"Invalid or inactive cost center: {cost_center}")
+                
+                # Validate cost_element exists and is active
+                ce = self.db.query(CostElement).filter(
+                    CostElement.code == cost_element,
+                    CostElement.is_active == True
+                ).first()
+                if not ce:
+                    raise InventoryError(f"Invalid or inactive cost element: {cost_element}")
+                
+                final_cost_center = cost_center
+                final_cost_element = cost_element
+                final_ref_type = "COST_CENTER"
+                
+            elif movement_type.upper() == 'CONSUME':
+                # CONSUME: Requires work order, copy cost allocation from work order
                 if work_order_id is None:
                     raise InventoryError("work_order_id is required for CONSUME movements")
+                if cost_center is not None or cost_element is not None:
+                    # Ignore client-sent cost fields for CONSUME
+                    pass
                 
                 # Validate work order exists and is active
                 from .models import WorkOrder, WorkOrderStatus
@@ -393,8 +442,23 @@ class InventoryService:
                     raise InventoryError(f"Work Order {work_order_id} not found")
                 if work_order.status != WorkOrderStatus.OPEN:
                     raise InventoryError(f"Work Order {work_order.wo_number} is not open for consumption")
+                
+                # Copy cost allocation from work order
+                final_cost_center = work_order.cost_center
+                final_cost_element = work_order.cost_element
+                final_ref_type = "WORK_ORDER"
+                
+            else:
+                raise InventoryError(f"Unsupported movement type: {movement_type}")
+            
+            # Validate work order for CONSUME movements (legacy code moved above)
+            # This section is now redundant but kept for compatibility
+            if movement_type.upper() == 'CONSUME':
+                # Already handled above
+                pass
             elif work_order_id is not None:
-                raise InventoryError("work_order_id only allowed for CONSUME movements")
+                # Already handled above
+                pass
             
             # Get unit conversion multiplier
             multiplier_to_base = self.get_unit_multiplier(unit_input)
@@ -453,6 +517,9 @@ class InventoryService:
                 product_id=product_id,
                 movement_type=movement_enum,
                 work_order_id=work_order_id,
+                cost_center=final_cost_center,
+                cost_element=final_cost_element,
+                ref_type=final_ref_type,
                 qty_input=qty_input,
                 unit_input=unit_input.upper(),
                 multiplier_to_base=multiplier_to_base,

@@ -60,6 +60,30 @@ async def create_work_order(
     current_user: User = Depends(check_manager_or_owner)
 ):
     """Create new work order - Manager/Owner only"""
+    
+    # Validate cost center and cost element exist and are active
+    from ..models import CostCenter, CostElement
+    
+    cc = db.query(CostCenter).filter(
+        CostCenter.code == work_order_data.cost_center,
+        CostCenter.is_active == True
+    ).first()
+    if not cc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid or inactive cost center: {work_order_data.cost_center}"
+        )
+    
+    ce = db.query(CostElement).filter(
+        CostElement.code == work_order_data.cost_element,
+        CostElement.is_active == True
+    ).first()
+    if not ce:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid or inactive cost element: {work_order_data.cost_element}"
+        )
+    
     try:
         work_order = WorkOrder(
             wo_number=work_order_data.wo_number,

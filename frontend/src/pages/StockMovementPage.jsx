@@ -11,6 +11,8 @@ const StockMovementPage = () => {
     product_id: '',
     movement_type: 'RECEIVE',
     work_order_id: '',
+    cost_center: '',
+    cost_element: '',
     qty_input: '',
     unit_input: 'PCS',
     unit_cost_input: '',
@@ -21,6 +23,8 @@ const StockMovementPage = () => {
   const [products, setProducts] = useState([])
   const [movements, setMovements] = useState([])
   const [workOrders, setWorkOrders] = useState([])
+  const [costCenters, setCostCenters] = useState([])
+  const [costElements, setCostElements] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
@@ -37,13 +41,16 @@ const StockMovementPage = () => {
                    formData.product_id && 
                    formData.qty_input && 
                    (formData.movement_type !== 'RECEIVE' || formData.unit_cost_input) &&
-                   (formData.movement_type !== 'CONSUME' || formData.work_order_id)
+                   (formData.movement_type !== 'CONSUME' || formData.work_order_id) &&
+                   (formData.movement_type !== 'ISSUE' || (formData.cost_center && formData.cost_element))
 
   // Load products and movements on mount
   useEffect(() => {
     loadProducts()
     loadMovements()
     loadWorkOrders()
+    loadCostCenters()
+    loadCostElements()
   }, [])
 
   const loadProducts = async () => {
@@ -109,6 +116,48 @@ const StockMovementPage = () => {
     }
   }
 
+  const loadCostCenters = async () => {
+    try {
+      const response = await fetch(`${apiConfig.baseUrl}/master-data/cost-centers?active=true`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': user?.token ? `Bearer ${user.token}` : '',
+        },
+      })
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch cost centers: ${response.status}`)
+      }
+      
+      const data = await response.json()
+      setCostCenters(data || [])
+    } catch (err) {
+      console.error('Failed to load cost centers:', err)
+    }
+  }
+
+  const loadCostElements = async () => {
+    try {
+      const response = await fetch(`${apiConfig.baseUrl}/master-data/cost-elements?active=true`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': user?.token ? `Bearer ${user.token}` : '',
+        },
+      })
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch cost elements: ${response.status}`)
+      }
+      
+      const data = await response.json()
+      setCostElements(data || [])
+    } catch (err) {
+      console.error('Failed to load cost elements:', err)
+    }
+  }
+
   const handleFormChange = (field, value) => {
     setFormData(prev => {
       const updated = { ...prev, [field]: value }
@@ -122,6 +171,11 @@ const StockMovementPage = () => {
         // Reset work_order_id when not CONSUME
         if (value !== 'CONSUME') {
           updated.work_order_id = ''
+        }
+        // Reset cost allocation when not ISSUE
+        if (value !== 'ISSUE') {
+          updated.cost_center = ''
+          updated.cost_element = ''
         }
       }
       
@@ -155,10 +209,16 @@ const StockMovementPage = () => {
         throw new Error('Work Order is required for CONSUME movements')
       }
 
+      if (formData.movement_type === 'ISSUE' && (!formData.cost_center || !formData.cost_element)) {
+        throw new Error('Cost Center and Cost Element are required for ISSUE movements')
+      }
+
       const payload = {
         product_id: parseInt(formData.product_id),
         movement_type: formData.movement_type,
         work_order_id: formData.work_order_id ? parseInt(formData.work_order_id) : null,
+        cost_center: formData.cost_center || null,
+        cost_element: formData.cost_element || null,
         qty_input: parseFloat(formData.qty_input),
         unit_input: formData.unit_input,
         unit_cost_input: formData.unit_cost_input ? parseFloat(formData.unit_cost_input) : null,
@@ -184,6 +244,8 @@ const StockMovementPage = () => {
         product_id: '',
         movement_type: 'RECEIVE',
         work_order_id: '',
+        cost_center: '',
+        cost_element: '',
         qty_input: '',
         unit_input: 'PCS',
         unit_cost_input: '',
@@ -205,7 +267,7 @@ const StockMovementPage = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Stock Movement</h1>
-        <p className="mt-1 text-sm text-slate-500">Manage stock movements with unit conversion. Use Adjustment entries for corrections.</p>
+        <p className="mt-1 text-sm text-slate-500">Manage stock movements: RECEIVE inventory, ISSUE for sales/usage, CONSUME for production Work Orders.</p>
         {isStaff && (
           <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-sm text-amber-700">
             Staff users have read-only access. Only managers and owners can create stock movements.
@@ -221,7 +283,7 @@ const StockMovementPage = () => {
           <div className="p-4 bg-slate-50 border border-slate-200 rounded text-center text-slate-600">
             <p className="text-sm">Staff users have read-only access to stock movements.</p>
             <p className="text-xs text-slate-500 mt-1">Only managers and owners can create stock movements.</p>
-            <p className="text-xs text-slate-500 mt-2">For corrections, create an Adjustment entry instead of modifying original records.</p>
+
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -258,7 +320,6 @@ const StockMovementPage = () => {
                 <option value="RECEIVE">RECEIVE</option>
                 <option value="ISSUE">ISSUE</option>
                 <option value="CONSUME">CONSUME</option>
-                <option value="ADJUST">ADJUST</option>
               </select>
             </div>
 
@@ -284,7 +345,78 @@ const StockMovementPage = () => {
                 <p className="mt-1 text-xs text-slate-500">
                   Select the work order to consume materials for
                 </p>
+                {/* Show derived cost center/element when WO is selected */}
+                {formData.work_order_id && (
+                  (() => {
+                    const selectedWO = workOrders.find(wo => wo.id === parseInt(formData.work_order_id))
+                    return selectedWO ? (
+                      <div className="mt-2 p-2 bg-blue-50 rounded text-sm">
+                        <p><strong>Cost Center:</strong> {selectedWO.cost_center}</p>
+                        <p><strong>Cost Element:</strong> {selectedWO.cost_element}</p>
+                      </div>
+                    ) : null
+                  })()
+                )}
               </div>
+            )}
+
+            {/* Cost allocation - only for ISSUE movements */}
+            {formData.movement_type === 'ISSUE' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Cost Center *
+                  </label>
+                  {costCenters.length > 0 ? (
+                    <select
+                      value={formData.cost_center}
+                      onChange={(e) => handleFormChange('cost_center', e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      required
+                    >
+                      <option value="">Select cost center</option>
+                      {costCenters.map(cc => (
+                        <option key={cc.id} value={cc.code}>
+                          {cc.code} - {cc.name || 'No name'}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50">
+                      <span className="text-slate-500 text-sm">
+                        No cost centers available. Create in Settings → Cost Centers.
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Cost Element *
+                  </label>
+                  {costElements.length > 0 ? (
+                    <select
+                      value={formData.cost_element}
+                      onChange={(e) => handleFormChange('cost_element', e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      required
+                    >
+                      <option value="">Select cost element</option>
+                      {costElements.map(ce => (
+                        <option key={ce.id} value={ce.code}>
+                          {ce.code} - {ce.name || 'No name'}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50">
+                      <span className="text-slate-500 text-sm">
+                        No cost elements available. Create in Settings → Cost Elements.
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </>
             )}
 
             <div>
@@ -294,18 +426,13 @@ const StockMovementPage = () => {
               <input
                 type="number"
                 step="0.01"
-                min={formData.movement_type === 'ADJUST' ? undefined : '0.01'}
+                min="0.01"
                 value={formData.qty_input}
                 onChange={(e) => handleFormChange('qty_input', e.target.value)}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                placeholder={formData.movement_type === 'ADJUST' ? 'Positive for increase, negative for decrease' : 'Enter quantity'}
+                placeholder="Enter quantity"
                 required
               />
-              {formData.movement_type === 'ADJUST' && (
-                <p className="mt-1 text-xs text-slate-500">
-                  Use positive numbers to increase stock, negative to decrease (e.g., -5 to reduce by 5 units)
-                </p>
-              )}
             </div>
 
             <div>
@@ -316,16 +443,16 @@ const StockMovementPage = () => {
                 value={formData.unit_input}
                 onChange={(e) => handleFormChange('unit_input', e.target.value)}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                disabled={['ISSUE', 'CONSUME', 'ADJUST'].includes(formData.movement_type)}
+                disabled={['ISSUE', 'CONSUME'].includes(formData.movement_type)}
               >
                 <option value="PCS">PCS</option>
                 {formData.movement_type === 'RECEIVE' && (
                   <option value="DOZEN">DOZEN</option>
                 )}
               </select>
-              {['ISSUE', 'CONSUME', 'ADJUST'].includes(formData.movement_type) && (
-                <p className="mt-1 text-xs text-slate-500">
-                  ISSUE, CONSUME, and ADJUST movements use PCS only
+              {['ISSUE', 'CONSUME'].includes(formData.movement_type) && (
+                <p className="text-xs text-gray-500 mt-1">
+                  ISSUE and CONSUME movements use PCS only
                 </p>
               )}
             </div>
@@ -415,6 +542,9 @@ const StockMovementPage = () => {
                   Total Value
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Cost Allocation
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
                   Balance
                 </th>
               </tr>
@@ -422,7 +552,7 @@ const StockMovementPage = () => {
             <tbody className="divide-y divide-slate-100">
               {movements.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan="8" className="px-6 py-8 text-center text-slate-500">
                     No movements found
                   </td>
                 </tr>
@@ -446,7 +576,7 @@ const StockMovementPage = () => {
                             ? 'bg-blue-50 text-blue-700 border border-blue-100'  
                             : movement.movement_type === 'CONSUME'
                             ? 'bg-purple-50 text-purple-700 border border-purple-100'
-                            : 'bg-orange-50 text-orange-700 border border-orange-100'  // ADJUST
+                            : 'bg-gray-50 text-gray-700 border border-gray-100'  // Other types
                         }`}>
                           {movement.movement_type}
                         </span>
@@ -469,6 +599,25 @@ const StockMovementPage = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
                         ฿{movement.value_total.toFixed(2)}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-600">
+                        {movement.movement_type === 'ISSUE' && movement.cost_center && movement.cost_element ? (
+                          <div>
+                            <div className="font-medium">{movement.cost_center}</div>
+                            <div className="text-xs text-slate-500">{movement.cost_element}</div>
+                          </div>
+                        ) : movement.movement_type === 'CONSUME' && movement.work_order_id ? (
+                          <div>
+                            <div className="font-medium">WO: {movement.work_order_id}</div>
+                            {movement.cost_center && movement.cost_element && (
+                              <div className="text-xs text-slate-500">
+                                {movement.cost_center} / {movement.cost_element}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-slate-400">-</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
                         {movement.balance_after} PCS

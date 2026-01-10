@@ -139,6 +139,11 @@ class StockMovement(Base):
     movement_type = Column(Enum(MovementType), nullable=False)
     work_order_id = Column(Integer, ForeignKey("work_orders.id"), nullable=True)  # Required for CONSUME movements
     
+    # Cost allocation fields
+    cost_center = Column(String(50), nullable=True)  # Required for ISSUE, copied from WO for CONSUME
+    cost_element = Column(String(50), nullable=True)  # Required for ISSUE, copied from WO for CONSUME
+    ref_type = Column(String(20), nullable=True)  # WORK_ORDER, COST_CENTER, NULL
+    
     # Unit conversion fields
     qty_input = Column(Float, nullable=False)  # Quantity as entered by user
     unit_input = Column(String(50), nullable=False)  # Unit as entered by user
@@ -204,3 +209,39 @@ class WorkOrder(Base):
     
     # Relationships
     stock_movements = relationship("StockMovement", foreign_keys="StockMovement.work_order_id")
+
+
+class CostCenter(Base):
+    """Cost Center master data for cost allocation"""
+    __tablename__ = "cost_centers"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String(50), unique=True, nullable=False, index=True)
+    name = Column(String(255), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    # Constraints and indexes
+    __table_args__ = (
+        Index("idx_cost_centers_code", "code"),
+        Index("idx_cost_centers_active", "is_active"),
+    )
+
+
+class CostElement(Base):
+    """Cost Element master data for cost allocation"""
+    __tablename__ = "cost_elements"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String(50), unique=True, nullable=False, index=True)
+    name = Column(String(255), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    # Constraints and indexes
+    __table_args__ = (
+        Index("idx_cost_elements_code", "code"),
+        Index("idx_cost_elements_active", "is_active"),
+    )

@@ -116,11 +116,20 @@ const Sidebar = ({
       roles: ['owner', 'manager']
     },
     {
-      id: 'settings',
-      name: 'Settings',
+      id: 'cost-centers',
+      name: 'Cost Centers',
       icon: Settings,
-      href: '/settings',
-      roles: ['owner']
+      href: '/cost-centers',
+      roles: ['owner', 'manager', 'staff'],
+      category: 'Settings'
+    },
+    {
+      id: 'cost-elements', 
+      name: 'Cost Elements',
+      icon: Settings,
+      href: '/cost-elements',
+      roles: ['owner', 'manager', 'staff'],
+      category: 'Settings'
     }
   ]
 

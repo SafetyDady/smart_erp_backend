@@ -20,6 +20,8 @@ const WorkOrdersPage = () => {
   const [showDetailView, setShowDetailView] = useState(false)
   const [consumptionData, setConsumptionData] = useState(null)
   const [loadingConsumptions, setLoadingConsumptions] = useState(false)
+  const [costCenters, setCostCenters] = useState([])
+  const [costElements, setCostElements] = useState([])
   
   // Form state
   const [formData, setFormData] = useState({
@@ -37,6 +39,8 @@ const WorkOrdersPage = () => {
   // Load work orders
   useEffect(() => {
     loadWorkOrders()
+    loadCostCenters()
+    loadCostElements()
   }, [])
   
   const loadWorkOrders = async () => {
@@ -61,6 +65,40 @@ const WorkOrdersPage = () => {
       setError(err.message)
     } finally {
       setLoading(false)
+    }
+  }
+  
+  const loadCostCenters = async () => {
+    try {
+      const response = await fetch(`${apiConfig.baseUrl}/master-data/cost-centers?active=true`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setCostCenters(data)
+      }
+    } catch (err) {
+      console.error('Failed to load cost centers:', err)
+    }
+  }
+  
+  const loadCostElements = async () => {
+    try {
+      const response = await fetch(`${apiConfig.baseUrl}/master-data/cost-elements?active=true`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setCostElements(data)
+      }
+    } catch (err) {
+      console.error('Failed to load cost elements:', err)
     }
   }
   
@@ -410,28 +448,38 @@ const WorkOrdersPage = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Cost Center *
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={formData.cost_center}
                     onChange={(e) => setFormData({...formData, cost_center: e.target.value})}
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                    placeholder="e.g., PROD-001"
-                  />
+                  >
+                    <option value="">Select Cost Center</option>
+                    {costCenters.map(center => (
+                      <option key={center.id} value={center.code}>
+                        {center.code} - {center.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Cost Element *
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={formData.cost_element}
                     onChange={(e) => setFormData({...formData, cost_element: e.target.value})}
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                    placeholder="e.g., LABOR"
-                  />
+                  >
+                    <option value="">Select Cost Element</option>
+                    {costElements.map(element => (
+                      <option key={element.id} value={element.code}>
+                        {element.code} - {element.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 
                 <div className="flex justify-end gap-3 pt-4">
@@ -521,26 +569,38 @@ const WorkOrdersPage = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Cost Center *
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={formData.cost_center}
                     onChange={(e) => setFormData({...formData, cost_center: e.target.value})}
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  />
+                  >
+                    <option value="">Select Cost Center</option>
+                    {costCenters.map(center => (
+                      <option key={center.id} value={center.code}>
+                        {center.code} - {center.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Cost Element *
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={formData.cost_element}
                     onChange={(e) => setFormData({...formData, cost_element: e.target.value})}
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  />
+                  >
+                    <option value="">Select Cost Element</option>
+                    {costElements.map(element => (
+                      <option key={element.id} value={element.code}>
+                        {element.code} - {element.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 
                 <div className="flex justify-end gap-3 pt-4">

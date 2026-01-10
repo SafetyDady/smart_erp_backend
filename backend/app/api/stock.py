@@ -31,12 +31,20 @@ def create_stock_movement(
     - ISSUE/CONSUME: unit_input must be PCS, unit_cost_input not allowed
     - Stock stored in base unit only
     - Average cost calculation for RECEIVE
+    - ADJUST is not available in Freeze Phase
     """
     # Role enforcement: Staff is read-only
     if user_role == UserRole.STAFF:
         raise HTTPException(
             status_code=403,
             detail="Staff users cannot create stock movements (read-only access)"
+        )
+    
+    # Freeze Phase: Block ADJUST movements
+    if request.movement_type.value == "ADJUST":
+        raise HTTPException(
+            status_code=400,
+            detail="ADJUST is not available in Freeze Phase. Use RECEIVE/ISSUE/CONSUME only."
         )
         
     service = InventoryService(db)
@@ -49,7 +57,9 @@ def create_stock_movement(
             unit_cost_input=request.unit_cost_input,
             performed_by=f"user_{user_role.value.lower()}",  # Store creator ID
             note=request.note,
-            work_order_id=request.work_order_id  # Pass work order ID for CONSUME movements
+            work_order_id=request.work_order_id,  # Pass work order ID for CONSUME movements
+            cost_center=request.cost_center,  # Pass cost center for ISSUE movements
+            cost_element=request.cost_element  # Pass cost element for ISSUE movements
         )
         return StockMovementResponse.from_orm(movement)
         
@@ -91,6 +101,9 @@ def get_stock_movements(
                 product_id=movement.product_id,
                 movement_type=movement.movement_type,
                 work_order_id=work_order_id,
+                cost_center=getattr(movement, 'cost_center', None),
+                cost_element=getattr(movement, 'cost_element', None),
+                ref_type=getattr(movement, 'ref_type', None),
                 qty_input=movement.qty_input,
                 unit_input=movement.unit_input,
                 multiplier_to_base=movement.multiplier_to_base,
